@@ -1,0 +1,5 @@
+{
+  "name": "AlkanchiPay",
+  "description": "A comprehensive POS system with Super Admin, Admin, and Cashier roles, featuring inventory management, transaction tracking, and AI-powered sales insights.",
+  "requestFramePermissions": []
+}

@@ -31,8 +31,6 @@ const AppContent = () => {
 
 import { AuthProvider } from './context/AuthContext';
 
-// ... (AppContent remains same)
-
 const App = () => {
   return (
     <AuthProvider>

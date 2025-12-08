@@ -741,135 +741,150 @@ export const SuperAdmin = () => {
                                         <div>
                                             <label className="block text-xs font-bold text-gray-400 mb-1 flex items-center gap-2"><Icons.MapPin size={14} /> Allowed Regions</label>
                                             <input name="allowedRegions" defaultValue={settings.security?.allowedRegions} placeholder="Lagos, Abuja..." className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" />
-                                            <div className="flex justify-between items-center mb-4">
-                                                <h3 className="text-lg font-bold text-white">{role === Role.ADMIN ? 'BRANCH MANAGER' : role.replace('_', ' ')}</h3>
-                                                <span className="bg-gray-700 text-xs px-2 py-1 rounded text-gray-300">{users.filter(u => u.role === role).length} Users</span>
-                                            </div>
-                                            <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">Capabilities</h4>
-                                            <ul className="space-y-2">
-                                                {rolePermissions[role as Role].map((perm: string) => (
-                                                    <li key={perm} className="flex items-center gap-2 text-sm text-gray-300">
-                                                        <Icons.Check size={14} className="text-green-500" /> {perm}
-                                                    </li>
-                                                ))}
-                                            </ul>
                                         </div>
-                            ))}
                                     </div>
-                                    <div className="mt-8 p-4 bg-blue-900/20 border border-blue-800 rounded-lg">
-                                        <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2"><Icons.Info size={16} /> Note</h4>
-                                        <p className="text-sm text-gray-300">Roles are currently system-defined. Custom roles will be available in a future update. To change a user's role, edit them in the "Users" tab.</p>
-                                    </div>
+                                    <button className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 rounded-lg transition text-sm">Save Security Rules</button>
+                                </form>
                             </div>
+                        </div>
+                    </div>
                 )}
 
-                            {activeTab === 'profile' && (
-                                <div className="max-w-md mx-auto bg-gray-800 rounded-xl border border-gray-700 p-8">
-                                    <div className="text-center mb-6">
-                                        <div className="w-24 h-24 bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center border-4 border-gray-600"><Icons.User size={48} className="text-gray-400" /></div>
-                                        <h2 className="text-2xl font-bold text-white">{user?.name}</h2>
-                                        <p className="text-red-400 font-bold">SUPER ADMIN</p>
+                {activeTab === 'roles' && (
+                    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden p-6">
+                        <h2 className="text-xl font-bold text-white mb-6">Roles & Permissions Management</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {Object.entries(Role).map(([key, role]) => (
+                                <div key={key} className="bg-gray-900 border border-gray-600 rounded-xl p-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-bold text-white">{role === Role.ADMIN ? 'BRANCH MANAGER' : role.replace('_', ' ')}</h3>
+                                        <span className="bg-gray-700 text-xs px-2 py-1 rounded text-gray-300">{users.filter(u => u.role === role).length} Users</span>
                                     </div>
-                                    {isEditingProfile ? (
-                                        <form onSubmit={handleUpdateProfile} className="space-y-4">
-                                            <input name="name" defaultValue={user?.name} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Full Name" />
-                                            <input name="username" defaultValue={user?.username} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Username" />
-                                            <div className="flex gap-2"><button type="button" onClick={() => setIsEditingProfile(false)} className="flex-1 bg-gray-700 text-white py-2 rounded">Cancel</button><button className="flex-1 bg-blue-600 text-white py-2 rounded font-bold">Save</button></div>
-                                        </form>
-                                    ) : (
-                                        <button onClick={() => setIsEditingProfile(true)} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold">Edit Profile</button>
-                                    )}
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">Capabilities</h4>
+                                    <ul className="space-y-2">
+                                        {rolePermissions[role as Role].map((perm: string) => (
+                                            <li key={perm} className="flex items-center gap-2 text-sm text-gray-300">
+                                                <Icons.Check size={14} className="text-green-500" /> {perm}
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
-                            )}
-
-                            {/* ... (Modal Logic Preserved) ... */}
-                            {/* User Modal */}
-                            {isModalOpen && (
-                                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-                                    <div className="bg-gray-800 p-8 rounded-xl w-[400px] border border-gray-700">
-                                        <h2 className="text-xl font-bold text-white mb-4">{editingUser ? 'Edit User' : 'Add New User'}</h2>
-                                        <form onSubmit={handleSaveUser} className="space-y-4">
-                                            <input name="name" defaultValue={editingUser?.name} placeholder="Full Name" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                            <input name="username" defaultValue={editingUser?.username} placeholder="Username" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                            {!editingUser && <input name="password" type="password" placeholder="Password" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />}
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value={Role.ADMIN}>Branch Manager</option><option value={Role.CASHIER}>Cashier</option></select>
-                                                <select name="storeId" defaultValue={editingUser?.storeId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="">No Branch (Global)</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
-                                            </div>
-                                            <div><label className="block text-xs font-bold text-gray-400 mb-1">Expense Limit ({settings.currency})</label><input type="number" name="expenseLimit" defaultValue={editingUser?.expenseLimit} placeholder="0.00" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" /></div>
-                                            {editingUser && (<div className="flex items-center gap-2"><input type="checkbox" name="status" defaultChecked={editingUser.active} value="active" /><label className="text-gray-300 text-sm">Active Account</label></div>)}
-                                            <div className="flex gap-2 pt-2"><button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save</button></div>
-                                        </form>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Branch Modal */}
-                            {isBranchModalOpen && (
-                                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-                                    <div className="bg-gray-800 p-8 rounded-xl w-96 border border-gray-700">
-                                        <h2 className="text-xl font-bold text-white mb-4">{editingBranch ? 'Edit Branch' : 'Add New Branch'}</h2>
-                                        <form onSubmit={handleSaveBranch} className="space-y-4">
-                                            <input name="name" defaultValue={editingBranch?.name} placeholder="Branch Name" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                            <input name="address" defaultValue={editingBranch?.address} placeholder="Address" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                            <input name="phone" defaultValue={editingBranch?.phone} placeholder="Phone" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" />
-                                            <div><label className="block text-xs font-bold text-gray-400 mb-1">Branch Manager</label><select name="managerId" defaultValue={editingBranch?.managerId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="">Select Manager</option>{potentialManagers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.username})</option>)}</select></div>
-                                            <div className="flex gap-2"><button type="button" onClick={() => setIsBranchModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save</button></div>
-                                        </form>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Branch Details Modal */}
-                            {selectedBranchForDetails && (
-                                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                                    <div className="bg-gray-800 rounded-xl w-full max-w-4xl border border-gray-700 flex flex-col max-h-[90vh]">
-                                        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-                                            <h2 className="text-xl font-bold text-white">{selectedBranchForDetails.name} Inventory</h2>
-                                            <button onClick={() => setSelectedBranchForDetails(null)}><Icons.Close className="text-white" /></button>
-                                        </div>
-                                        <div className="flex-1 overflow-auto p-4">
-                                            <table className="w-full text-left text-sm text-gray-300">
-                                                <thead className="bg-gray-900 font-bold sticky top-0"><tr><th>Product</th><th>SKU</th><th>Cost</th><th>Price</th><th>Stock</th><th>Last Updated</th></tr></thead>
-                                                <tbody className="divide-y divide-gray-700">
-                                                    {branchDetailsProducts.map(p => (
-                                                        <tr key={p.id}>
-                                                            <td className="p-3 text-white font-bold">{p.name}</td>
-                                                            <td className="p-3 font-mono text-xs">{p.sku}</td>
-                                                            <td className="p-3">{settings.currency}{p.costPrice.toFixed(2)}</td>
-                                                            <td className="p-3">{settings.currency}{p.sellingPrice.toFixed(2)}</td>
-                                                            <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs ${p.stock < p.minStockAlert ? 'bg-red-900 text-red-400' : 'bg-green-900 text-green-400'}`}>{p.stock}</span></td>
-                                                            <td className="p-3 text-xs">{p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : 'N/A'}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Product Modal */}
-                            {isProductModalOpen && (
-                                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-                                    <div className="bg-gray-800 p-8 rounded-xl w-[500px] border border-gray-700">
-                                        <h2 className="text-xl font-bold text-white mb-4">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
-                                        <form onSubmit={handleSaveProduct} className="grid grid-cols-2 gap-4">
-                                            <input name="name" defaultValue={editingProduct?.name} placeholder="Product Name" className="col-span-2 w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                            <input name="sku" defaultValue={editingProduct?.sku} placeholder="SKU Code" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                            <select name="category" defaultValue={editingProduct?.category || 'General'} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="General">General</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
-                                            <input type="number" name="costPrice" defaultValue={editingProduct?.costPrice} placeholder="Cost Price" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required step="0.01" />
-                                            <input type="number" name="sellingPrice" defaultValue={editingProduct?.sellingPrice} placeholder="Selling Price" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required step="0.01" />
-                                            <input type="number" name="stock" defaultValue={editingProduct?.stock} placeholder="Initial Stock" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                            <input type="number" name="minStockAlert" defaultValue={editingProduct?.minStockAlert || 5} placeholder="Low Stock Alert" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                            <select name="storeId" defaultValue={editingProduct?.storeId || ''} className="col-span-2 w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required><option value="">Select Branch</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
-                                            <div className="col-span-2 flex gap-2 mt-4"><button type="button" onClick={() => setIsProductModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save Product</button></div>
-                                        </form>
-                                    </div>
-                                </div>
-                            )}
-
-                        </main>
+                            ))}
+                        </div>
+                        <div className="mt-8 p-4 bg-blue-900/20 border border-blue-800 rounded-lg">
+                            <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2"><Icons.Info size={16} /> Note</h4>
+                            <p className="text-sm text-gray-300">Roles are currently system-defined. Custom roles will be available in a future update. To change a user's role, edit them in the "Users" tab.</p>
+                        </div>
                     </div>
-                );
+                )}
+
+                {activeTab === 'profile' && (
+                    <div className="max-w-md mx-auto bg-gray-800 rounded-xl border border-gray-700 p-8">
+                        <div className="text-center mb-6">
+                            <div className="w-24 h-24 bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center border-4 border-gray-600"><Icons.User size={48} className="text-gray-400" /></div>
+                            <h2 className="text-2xl font-bold text-white">{user?.name}</h2>
+                            <p className="text-red-400 font-bold">SUPER ADMIN</p>
+                        </div>
+                        {isEditingProfile ? (
+                            <form onSubmit={handleUpdateProfile} className="space-y-4">
+                                <input name="name" defaultValue={user?.name} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Full Name" />
+                                <input name="username" defaultValue={user?.username} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Username" />
+                                <div className="flex gap-2"><button type="button" onClick={() => setIsEditingProfile(false)} className="flex-1 bg-gray-700 text-white py-2 rounded">Cancel</button><button className="flex-1 bg-blue-600 text-white py-2 rounded font-bold">Save</button></div>
+                            </form>
+                        ) : (
+                            <button onClick={() => setIsEditingProfile(true)} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold">Edit Profile</button>
+                        )}
+                    </div>
+                )}
+
+                {/* ... (Modal Logic Preserved) ... */}
+                {/* User Modal */}
+                {isModalOpen && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                        <div className="bg-gray-800 p-8 rounded-xl w-[400px] border border-gray-700">
+                            <h2 className="text-xl font-bold text-white mb-4">{editingUser ? 'Edit User' : 'Add New User'}</h2>
+                            <form onSubmit={handleSaveUser} className="space-y-4">
+                                <input name="name" defaultValue={editingUser?.name} placeholder="Full Name" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                <input name="username" defaultValue={editingUser?.username} placeholder="Username" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                {!editingUser && <input name="password" type="password" placeholder="Password" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value={Role.ADMIN}>Branch Manager</option><option value={Role.CASHIER}>Cashier</option></select>
+                                    <select name="storeId" defaultValue={editingUser?.storeId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="">No Branch (Global)</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+                                </div>
+                                <div><label className="block text-xs font-bold text-gray-400 mb-1">Expense Limit ({settings.currency})</label><input type="number" name="expenseLimit" defaultValue={editingUser?.expenseLimit} placeholder="0.00" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" /></div>
+                                {editingUser && (<div className="flex items-center gap-2"><input type="checkbox" name="status" defaultChecked={editingUser.active} value="active" /><label className="text-gray-300 text-sm">Active Account</label></div>)}
+                                <div className="flex gap-2 pt-2"><button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save</button></div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Branch Modal */}
+                {isBranchModalOpen && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                        <div className="bg-gray-800 p-8 rounded-xl w-96 border border-gray-700">
+                            <h2 className="text-xl font-bold text-white mb-4">{editingBranch ? 'Edit Branch' : 'Add New Branch'}</h2>
+                            <form onSubmit={handleSaveBranch} className="space-y-4">
+                                <input name="name" defaultValue={editingBranch?.name} placeholder="Branch Name" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                <input name="address" defaultValue={editingBranch?.address} placeholder="Address" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                <input name="phone" defaultValue={editingBranch?.phone} placeholder="Phone" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" />
+                                <div><label className="block text-xs font-bold text-gray-400 mb-1">Branch Manager</label><select name="managerId" defaultValue={editingBranch?.managerId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="">Select Manager</option>{potentialManagers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.username})</option>)}</select></div>
+                                <div className="flex gap-2"><button type="button" onClick={() => setIsBranchModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save</button></div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Branch Details Modal */}
+                {selectedBranchForDetails && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                        <div className="bg-gray-800 rounded-xl w-full max-w-4xl border border-gray-700 flex flex-col max-h-[90vh]">
+                            <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                                <h2 className="text-xl font-bold text-white">{selectedBranchForDetails.name} Inventory</h2>
+                                <button onClick={() => setSelectedBranchForDetails(null)}><Icons.Close className="text-white" /></button>
+                            </div>
+                            <div className="flex-1 overflow-auto p-4">
+                                <table className="w-full text-left text-sm text-gray-300">
+                                    <thead className="bg-gray-900 font-bold sticky top-0"><tr><th>Product</th><th>SKU</th><th>Cost</th><th>Price</th><th>Stock</th><th>Last Updated</th></tr></thead>
+                                    <tbody className="divide-y divide-gray-700">
+                                        {branchDetailsProducts.map(p => (
+                                            <tr key={p.id}>
+                                                <td className="p-3 text-white font-bold">{p.name}</td>
+                                                <td className="p-3 font-mono text-xs">{p.sku}</td>
+                                                <td className="p-3">{settings.currency}{p.costPrice.toFixed(2)}</td>
+                                                <td className="p-3">{settings.currency}{p.sellingPrice.toFixed(2)}</td>
+                                                <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs ${p.stock < p.minStockAlert ? 'bg-red-900 text-red-400' : 'bg-green-900 text-green-400'}`}>{p.stock}</span></td>
+                                                <td className="p-3 text-xs">{p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : 'N/A'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Product Modal */}
+                {isProductModalOpen && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                        <div className="bg-gray-800 p-8 rounded-xl w-[500px] border border-gray-700">
+                            <h2 className="text-xl font-bold text-white mb-4">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
+                            <form onSubmit={handleSaveProduct} className="grid grid-cols-2 gap-4">
+                                <input name="name" defaultValue={editingProduct?.name} placeholder="Product Name" className="col-span-2 w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                <input name="sku" defaultValue={editingProduct?.sku} placeholder="SKU Code" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                <select name="category" defaultValue={editingProduct?.category || 'General'} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="General">General</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
+                                <input type="number" name="costPrice" defaultValue={editingProduct?.costPrice} placeholder="Cost Price" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required step="0.01" />
+                                <input type="number" name="sellingPrice" defaultValue={editingProduct?.sellingPrice} placeholder="Selling Price" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required step="0.01" />
+                                <input type="number" name="stock" defaultValue={editingProduct?.stock} placeholder="Initial Stock" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                <input type="number" name="minStockAlert" defaultValue={editingProduct?.minStockAlert || 5} placeholder="Low Stock Alert" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                <select name="storeId" defaultValue={editingProduct?.storeId || ''} className="col-span-2 w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required><option value="">Select Branch</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+                                <div className="col-span-2 flex gap-2 mt-4"><button type="button" onClick={() => setIsProductModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save Product</button></div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+            </main>
+        </div>
+    );
 };

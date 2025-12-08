@@ -56,6 +56,9 @@ export const SuperAdmin = () => {
     return tDate >= start && tDate <= end && (!filterCashier || t.cashierId === filterCashier);
   });
 
+  const recentGlobalTransactions = [...transactions].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10);
+  const recentSystemActivities = [...activityLogs].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10);
+
   const filteredInventory = products.filter(p => {
     const search = inventorySearch.toLowerCase();
     const matchesSearch = p.name.toLowerCase().includes(search) || p.sku.toLowerCase().includes(search);
@@ -113,6 +116,7 @@ export const SuperAdmin = () => {
           id: editingUser ? editingUser.id : nanoid(),
           name: formData.get('name') as string,
           username: formData.get('username') as string,
+          password: formData.get('password') as string, // Added password field
           role: formData.get('role') as Role,
           active: formData.get('status') === 'active',
           storeId: formData.get('storeId') as string,
@@ -250,6 +254,62 @@ export const SuperAdmin = () => {
                           <p className="text-gray-400 text-sm mb-1 font-bold">Pending Expenses</p>
                           <h3 className="text-3xl font-extrabold text-orange-400">{expenses.filter(e => e.status === ExpenseStatus.PENDING).length}</h3>
                       </div>
+                   </div>
+
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                       {/* Recent Global Transactions */}
+                       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
+                          <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
+                            <h3 className="font-bold text-lg text-white flex items-center gap-2"><Icons.History className="text-blue-400"/> Recent Sales (All Branches)</h3>
+                            <button onClick={()=>setActiveTab('transactions')} className="text-xs font-bold text-blue-400 hover:text-white">View All</button>
+                          </div>
+                          <div className="overflow-x-auto max-h-[400px]">
+                            <table className="w-full text-left text-sm">
+                              <thead className="bg-gray-900/50 text-gray-400 font-bold sticky top-0">
+                                <tr>
+                                  <th className="p-3">Branch</th>
+                                  <th className="p-3">Cashier</th>
+                                  <th className="p-3 text-right">Amount</th>
+                                  <th className="p-3 text-center">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-700">
+                                {recentGlobalTransactions.map(t => (
+                                  <tr key={t.id} className="hover:bg-gray-700/50">
+                                    <td className="p-3 font-medium text-white">{branches.find(b => b.id === t.storeId)?.name || 'Unknown'}</td>
+                                    <td className="p-3 text-gray-400 text-xs">{t.cashierName} <br/><span className="text-[10px]">{new Date(t.date).toLocaleTimeString()}</span></td>
+                                    <td className="p-3 text-right font-bold text-green-400">{settings.currency}{t.total.toFixed(2)}</td>
+                                    <td className="p-3 text-center"><span className="bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-300">{t.status}</span></td>
+                                  </tr>
+                                ))}
+                                {recentGlobalTransactions.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-gray-500">No transactions found.</td></tr>}
+                              </tbody>
+                            </table>
+                          </div>
+                       </div>
+
+                       {/* System Alerts & Activity Feed */}
+                       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
+                          <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
+                             <h3 className="font-bold text-lg text-white flex items-center gap-2"><Icons.Bell className="text-orange-400"/> System Alerts & Activities</h3>
+                             <button onClick={()=>setActiveTab('activity')} className="text-xs font-bold text-blue-400 hover:text-white">View Logs</button>
+                          </div>
+                          <div className="overflow-y-auto max-h-[400px] p-0">
+                             {recentSystemActivities.map(log => (
+                               <div key={log.id} className="p-4 border-b border-gray-700 hover:bg-gray-700/30 transition flex gap-3">
+                                  <div className={`mt-1 p-2 rounded-full h-fit ${log.action.includes('CREATED') ? 'bg-green-900/50 text-green-400' : log.action.includes('DELETED') ? 'bg-red-900/50 text-red-400' : 'bg-blue-900/50 text-blue-400'}`}>
+                                     {log.action.includes('USER') ? <Icons.User size={16}/> : <Icons.Activity size={16}/>}
+                                  </div>
+                                  <div>
+                                     <p className="text-sm font-bold text-gray-200">{log.action.replace(/_/g, ' ')}</p>
+                                     <p className="text-xs text-gray-400 mb-1">{log.details}</p>
+                                     <p className="text-[10px] text-gray-500 font-mono">{new Date(log.timestamp).toLocaleString()} by {log.userName}</p>
+                                  </div>
+                               </div>
+                             ))}
+                             {recentSystemActivities.length === 0 && <p className="p-6 text-center text-gray-500">No system activity logged yet.</p>}
+                          </div>
+                       </div>
                    </div>
               </div>
           )}
@@ -720,6 +780,7 @@ export const SuperAdmin = () => {
                   <form onSubmit={handleSaveUser} className="space-y-4">
                       <input name="name" defaultValue={editingUser?.name} placeholder="Full Name" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                       <input name="username" defaultValue={editingUser?.username} placeholder="Username" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                      {!editingUser && <input name="password" type="password" placeholder="Password" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />}
                       <div className="grid grid-cols-2 gap-2">
                           <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded">
                               <option value={Role.ADMIN}>Admin</option>

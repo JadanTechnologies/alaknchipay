@@ -29,11 +29,17 @@ const AppContent = () => {
   );
 };
 
+import { AuthProvider } from './context/AuthContext';
+
+// ... (AppContent remains same)
+
 const App = () => {
   return (
-    <StoreProvider>
-      <AppContent />
-    </StoreProvider>
+    <AuthProvider>
+      <StoreProvider>
+        <AppContent />
+      </StoreProvider>
+    </AuthProvider>
   );
 };
 

@@ -44,6 +44,7 @@ interface StoreContextType {
   deleteExpense: (id: string) => void;
   createBackup: (storeId?: string) => string;
   restoreBackup: (jsonData: string) => boolean;
+  uploadFile: (file: File, path?: string) => Promise<string | null>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -201,7 +202,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateExpense: (e) => { },
       deleteExpense: (id) => { },
       createBackup: () => "",
-      restoreBackup: (d) => false
+      restoreBackup: (d) => false,
+      uploadFile: async (file: File) => {
+        try {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+          const filePath = `${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('alkanchipay')
+            .upload(filePath, file);
+
+          if (uploadError) {
+            console.error('Upload Error:', uploadError);
+            addNotification('File upload failed', 'error');
+            return null;
+          }
+
+          const { data } = supabase.storage
+            .from('alkanchipay')
+            .getPublicUrl(filePath);
+
+          return data.publicUrl;
+        } catch (error) {
+          console.error('Upload Exception:', error);
+          return null;
+        }
+      }
     }}>
       {children}
     </StoreContext.Provider>

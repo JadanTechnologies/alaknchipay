@@ -52,11 +52,17 @@ export const Cashier = () => {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [selectedDebtTx, setSelectedDebtTx] = useState<Transaction | null>(null);
 
+  // Alert Control
+  const hasAlertedRef = useRef(false);
+
   // Derived Data
   const currentBranch = branches.find(b => b.id === user?.storeId);
   const availableProducts = products.filter(p => p.storeId === user?.storeId);
   const productCategories = ['All', ...categories.map(c => c.name)];
+  
+  // STRICT FILTER: Only show transactions made by THIS cashier
   const myTransactions = transactions.filter(t => t.cashierId === user?.id && t.status !== TransactionStatus.HELD);
+  
   const heldTransactions = transactions.filter(t => t.storeId === user?.storeId && t.status === TransactionStatus.HELD);
   const myExpenses = expenses.filter(e => e.requestedBy === user?.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const debtTransactions = transactions.filter(t => t.storeId === user?.storeId && (t.status === TransactionStatus.PARTIAL || (t.paymentMethod === PaymentMethod.CREDIT && t.amountPaid < t.total)));
@@ -66,11 +72,20 @@ export const Cashier = () => {
     const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
-
-  // Real-time Stock Alerts
+  
+  // Real-time Stock Alerts Effect
   useEffect(() => {
-    // Only relying on StoreContext addTransaction logic to trigger alerts to avoid spam
-  }, []); 
+    if (cart.length > 0 && !hasAlertedRef.current) {
+         const lowStockItems = filteredProducts.filter(p => p.stock <= p.minStockAlert);
+         if (lowStockItems.length > 0) {
+             // We can trigger a toast here if desired, but user asked to prevent spam.
+             // We'll leave it silent or rely on the transaction completion notification.
+             hasAlertedRef.current = true;
+         }
+    } else if(cart.length === 0) {
+        hasAlertedRef.current = false;
+    }
+  }, [cart, filteredProducts]);
 
   // End of Day Metrics
   const today = new Date().toLocaleDateString();
@@ -299,6 +314,7 @@ export const Cashier = () => {
       </head>
       <body>
         <div class="header">
+          ${settings.logoUrl ? `<img src="${settings.logoUrl}" style="max-width: 60px; max-height: 60px; margin-bottom: 5px;" />` : ''}
           <div class="logo">${settings.name}</div>
           <div class="branch">${currentBranch?.name || 'Main Branch'}</div>
           <div class="info">${currentBranch?.address || ''}</div>
@@ -632,22 +648,49 @@ export const Cashier = () => {
 
         {/* ... (Other Tabs remain the same) ... */}
         {activeTab === 'dashboard' && (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                 <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                     <p className="text-gray-400 text-sm font-bold uppercase">Total Sales Today</p>
-                     <h3 className="text-3xl font-extrabold text-white mt-2">{settings.currency}{totalSales.toFixed(2)}</h3>
+             <div className="space-y-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                     <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                         <p className="text-gray-400 text-sm font-bold uppercase">Total Sales Today</p>
+                         <h3 className="text-3xl font-extrabold text-white mt-2">{settings.currency}{totalSales.toFixed(2)}</h3>
+                     </div>
+                     <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                         <p className="text-gray-400 text-sm font-bold uppercase">Transactions</p>
+                         <h3 className="text-3xl font-extrabold text-blue-400 mt-2">{todaysTxs.length}</h3>
+                     </div>
+                     <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                         <p className="text-gray-400 text-sm font-bold uppercase">Cash in Hand</p>
+                         <h3 className="text-3xl font-extrabold text-green-400 mt-2">{settings.currency}{cashInHand.toFixed(2)}</h3>
+                     </div>
+                     <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                         <p className="text-gray-400 text-sm font-bold uppercase">Expenses Raised</p>
+                         <h3 className="text-3xl font-extrabold text-orange-400 mt-2">{myExpenses.length}</h3>
+                     </div>
                  </div>
-                 <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                     <p className="text-gray-400 text-sm font-bold uppercase">Transactions</p>
-                     <h3 className="text-3xl font-extrabold text-blue-400 mt-2">{todaysTxs.length}</h3>
-                 </div>
-                 <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                     <p className="text-gray-400 text-sm font-bold uppercase">Cash in Hand</p>
-                     <h3 className="text-3xl font-extrabold text-green-400 mt-2">{settings.currency}{cashInHand.toFixed(2)}</h3>
-                 </div>
-                 <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                     <p className="text-gray-400 text-sm font-bold uppercase">Expenses Raised</p>
-                     <h3 className="text-3xl font-extrabold text-orange-400 mt-2">{myExpenses.length}</h3>
+
+                 {/* Recent Transactions Widget */}
+                 <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                     <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                         <h3 className="font-bold text-white text-lg">My Recent Transactions</h3>
+                         <button onClick={()=>setActiveTab('history')} className="text-blue-400 text-sm font-bold hover:text-blue-300">View All</button>
+                     </div>
+                     <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-gray-300">
+                             <thead className="bg-gray-900/50 text-gray-400 font-bold"><tr><th className="p-4">Time</th><th className="p-4">Receipt ID</th><th className="p-4">Items</th><th className="p-4">Total</th><th className="p-4">Status</th></tr></thead>
+                             <tbody className="divide-y divide-gray-700">
+                                 {myTransactions.sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).slice(0, 5).map(t => (
+                                     <tr key={t.id} className="hover:bg-gray-700/50">
+                                         <td className="p-4">{new Date(t.date).toLocaleTimeString()}</td>
+                                         <td className="p-4 font-mono text-xs text-gray-400">{t.id.slice(0,8)}</td>
+                                         <td className="p-4">{t.items.length}</td>
+                                         <td className="p-4 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td>
+                                         <td className="p-4"><span className={`px-2 py-0.5 rounded text-xs ${t.status === TransactionStatus.COMPLETED ? 'bg-green-900 text-green-400' : 'bg-orange-900 text-orange-400'}`}>{t.status}</span></td>
+                                     </tr>
+                                 ))}
+                                 {myTransactions.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-gray-500">No recent transactions found.</td></tr>}
+                             </tbody>
+                         </table>
+                     </div>
                  </div>
              </div>
         )}
@@ -656,24 +699,28 @@ export const Cashier = () => {
         {activeTab === 'history' && (
              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
                  <div className="p-6 border-b border-gray-700"><h3 className="font-bold text-white text-lg">My Transaction History</h3></div>
-                 <table className="w-full text-left text-sm text-gray-300">
-                     <thead className="bg-gray-900/50 text-gray-400 font-bold"><tr><th className="p-4">Time</th><th className="p-4">Receipt ID</th><th className="p-4">Items</th><th className="p-4">Total</th><th className="p-4">Method</th><th className="p-4">Action</th></tr></thead>
-                     <tbody className="divide-y divide-gray-700">
-                         {myTransactions.sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).map(t => (
-                             <tr key={t.id} className="hover:bg-gray-700/50">
-                                 <td className="p-4">{new Date(t.date).toLocaleString()}</td>
-                                 <td className="p-4 font-mono text-xs">{t.id.slice(0,8)}</td>
-                                 <td className="p-4">{t.items.length}</td>
-                                 <td className="p-4 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td>
-                                 <td className="p-4">{t.paymentMethod}</td>
-                                 <td className="p-4"><button onClick={()=>handlePrintReceipt(t)} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs font-bold">Reprint</button></td>
-                             </tr>
-                         ))}
-                     </tbody>
-                 </table>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-gray-300">
+                        <thead className="bg-gray-900/50 text-gray-400 font-bold"><tr><th className="p-4">Time</th><th className="p-4">Receipt ID</th><th className="p-4">Items</th><th className="p-4">Total</th><th className="p-4">Method</th><th className="p-4">Action</th></tr></thead>
+                        <tbody className="divide-y divide-gray-700">
+                            {myTransactions.sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).map(t => (
+                                <tr key={t.id} className="hover:bg-gray-700/50">
+                                    <td className="p-4">{new Date(t.date).toLocaleString()}</td>
+                                    <td className="p-4 font-mono text-xs">{t.id.slice(0,8)}</td>
+                                    <td className="p-4">{t.items.length}</td>
+                                    <td className="p-4 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td>
+                                    <td className="p-4">{t.paymentMethod}</td>
+                                    <td className="p-4"><button onClick={()=>handlePrintReceipt(t)} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs font-bold">Reprint</button></td>
+                                </tr>
+                            ))}
+                            {myTransactions.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-500">No history available for your account.</td></tr>}
+                        </tbody>
+                    </table>
+                 </div>
              </div>
         )}
 
+        {/* ... (Existing tabs: Debts, Inventory, EndOfDay, Returns, Expenses, Profile - Preserved) ... */}
         {/* DEBTS TAB */}
         {activeTab === 'debts' && (
              <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
@@ -769,7 +816,6 @@ export const Cashier = () => {
             </div>
         )}
         
-        {/* RETURNS, EXPENSES, PROFILE tabs omitted for brevity, assumed unchanged */}
         {activeTab === 'returns' && (
              <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 max-w-2xl mx-auto">
                  <h2 className="text-xl font-bold text-white mb-6">Process Return</h2>
@@ -878,7 +924,7 @@ export const Cashier = () => {
 
       </main>
 
-      {/* Checkout/Success/Recall Modals ... (omitted, assumed preserved) */}
+      {/* Checkout/Success/Recall Modals... (omitted, preserved) */}
        {isCheckingOut && (
           <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
              <div className="bg-gray-800 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">

@@ -6,7 +6,8 @@ import {
   HelpCircle, Printer, CheckCircle, Download, Store, Filter, X, Bell, Info,
   Menu, ChevronLeft, ChevronRight, Split, Wallet, List, PlusCircle, Banknote, Smartphone,
   Calendar, Clock, FileText, DollarSign, Pause, Play, Clipboard, User, Activity,
-  Calculator, Wifi, WifiOff, FileDown, Eye, ArrowRight, CheckSquare, XSquare, PiggyBank, File, Percent, Tag
+  Calculator, Wifi, WifiOff, FileDown, Eye, ArrowRight, CheckSquare, XSquare, PiggyBank, File, Percent, Tag,
+  Upload, Globe, Monitor, MapPin, Shield, Lock, Unlock, DownloadCloud
 } from 'lucide-react';
 
 export const Icons = {
@@ -74,5 +75,13 @@ export const Icons = {
   Expenses: DollarSign,
   Deposit: PiggyBank,
   Percent: Percent,
-  Tag: Tag
+  Tag: Tag,
+  Upload: Upload,
+  Globe: Globe,
+  Monitor: Monitor,
+  MapPin: MapPin,
+  Shield: Shield,
+  Lock: Lock,
+  Unlock: Unlock,
+  DownloadCloud: DownloadCloud
 };

@@ -31,6 +31,7 @@ interface StoreContextType {
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
   deleteUser: (id: string) => void;
+  toggleUserStatus: (id: string) => void;
   updateSettings: (settings: StoreSettings) => void;
   processRefund: (transactionId: string, items: RefundItem[], reason: string, condition?: string) => void;
   addBranch: (branch: Branch) => void;
@@ -41,6 +42,8 @@ interface StoreContextType {
   addExpense: (expense: Expense) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
+  createBackup: (storeId?: string) => string;
+  restoreBackup: (jsonData: string) => boolean;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -117,8 +120,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [removeNotification]);
 
   const login = (username: string) => {
-    const foundUser = users.find(u => u.username === username && u.active);
+    const foundUser = users.find(u => u.username === username);
     if (foundUser) {
+      if(!foundUser.active) {
+          addNotification('Account suspended. Contact Administrator.', 'error');
+          return false;
+      }
       setUser(foundUser);
       addNotification(`Welcome back, ${foundUser.name}`, 'success');
       return true;
@@ -309,6 +316,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     logSystemAction('USER_DELETED', `Deleted user: ${usr?.username || id}`);
   };
 
+  const toggleUserStatus = (id: string) => {
+      const usr = users.find(u => u.id === id);
+      if(usr) {
+          const newStatus = !usr.active;
+          updateUser({...usr, active: newStatus});
+          addNotification(`User ${usr.username} ${newStatus ? 'Activated' : 'Suspended'}`, newStatus ? 'success' : 'warning');
+          logSystemAction('USER_STATUS_CHANGE', `User ${usr.username} changed to ${newStatus ? 'Active' : 'Suspended'}`);
+      }
+  };
+
   const updateSettings = (s: StoreSettings) => {
     setSettings(s);
     addNotification('System settings saved successfully', 'success');
@@ -355,6 +372,61 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification('Expense deleted', 'info');
   };
 
+  // Backup & Restore
+  const createBackup = (storeId?: string) => {
+      const backupData = {
+          date: new Date().toISOString(),
+          version: '1.0',
+          data: {
+              users: storeId ? users.filter(u => u.storeId === storeId) : users,
+              products: storeId ? products.filter(p => p.storeId === storeId) : products,
+              transactions: storeId ? transactions.filter(t => t.storeId === storeId) : transactions,
+              branches: storeId ? branches.filter(b => b.id === storeId) : branches,
+              categories: categories, // Keep categories global for simplicity or filter if needed
+              expenses: storeId ? expenses.filter(e => e.storeId === storeId) : expenses,
+              settings: settings
+          }
+      };
+      return JSON.stringify(backupData, null, 2);
+  };
+
+  const restoreBackup = (jsonData: string) => {
+      try {
+          const parsed = JSON.parse(jsonData);
+          if(parsed.data) {
+              // This is a simplified merge/overwrite strategy.
+              // In a real app, you might want more complex conflict resolution.
+              // Here, we'll merge lists, replacing items with matching IDs.
+              
+              const merge = (existing: any[], incoming: any[]) => {
+                  const map = new Map(existing.map(i => [i.id, i]));
+                  incoming.forEach(i => map.set(i.id, i));
+                  return Array.from(map.values());
+              };
+
+              setUsers(prev => merge(prev, parsed.data.users || []));
+              setProducts(prev => merge(prev, parsed.data.products || []));
+              setTransactions(prev => merge(prev, parsed.data.transactions || []));
+              setBranches(prev => merge(prev, parsed.data.branches || []));
+              setCategories(prev => merge(prev, parsed.data.categories || []));
+              setExpenses(prev => merge(prev, parsed.data.expenses || []));
+              
+              // Only update settings if it's a full restore (Super Admin usually)
+              if(parsed.data.settings && user?.role === Role.SUPER_ADMIN) {
+                  setSettings(parsed.data.settings);
+              }
+
+              addNotification('System restored from backup successfully', 'success');
+              logSystemAction('SYSTEM_RESTORE', 'Data restored from backup file');
+              return true;
+          }
+          throw new Error("Invalid backup format");
+      } catch (e) {
+          addNotification('Failed to restore backup: Invalid file format', 'error');
+          return false;
+      }
+  };
+
   return (
     <StoreContext.Provider value={{
       user, users, products, transactions, settings, branches, notifications, categories, activityLogs, expenses, expenseCategories,
@@ -363,12 +435,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addCategory, deleteCategory,
       addExpenseCategory, deleteExpenseCategory,
       addTransaction, updateTransaction, deleteTransaction,
-      addUser, updateUser, deleteUser,
+      addUser, updateUser, deleteUser, toggleUserStatus,
       updateSettings,
       processRefund,
       addBranch, updateBranch, deleteBranch,
       addNotification, removeNotification,
-      addExpense, updateExpense, deleteExpense
+      addExpense, updateExpense, deleteExpense,
+      createBackup, restoreBackup
     }}>
       {children}
     </StoreContext.Provider>

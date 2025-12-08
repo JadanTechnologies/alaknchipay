@@ -37,6 +37,13 @@ export interface Branch {
   managerId?: string; // ID of the Admin/User managing this branch
 }
 
+export interface AccessRules {
+  allowedIPs?: string;
+  allowedDevices?: string;
+  allowedRegions?: string;
+  allowedOS?: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -46,6 +53,7 @@ export interface User {
   active: boolean;
   storeId?: string; // Links to Branch ID
   expenseLimit?: number; // Maximum amount they can request
+  accessRules?: AccessRules;
 }
 
 export interface Category {
@@ -138,6 +146,8 @@ export interface StoreSettings {
   currency: string;
   address: string;
   phone?: string;
+  logoUrl?: string;
+  security?: AccessRules;
 }
 
 export interface AnalyticsData {

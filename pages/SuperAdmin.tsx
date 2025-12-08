@@ -466,6 +466,214 @@ export const SuperAdmin = () => {
               </div>
           )}
 
+          {activeTab === 'branches' && (
+              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+                    <h2 className="text-lg font-bold text-white">Branch Management</h2>
+                    <button onClick={() => { setEditingBranch(null); setIsBranchModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> Add Branch</button>
+                </div>
+                <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold">
+                        <tr>
+                            <th className="p-4">Branch Name</th>
+                            <th className="p-4">Address</th>
+                            <th className="p-4">Manager</th>
+                            <th className="p-4">Inventory Value</th>
+                            <th className="p-4">Sales Revenue</th>
+                            <th className="p-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700 text-gray-200">
+                        {branches.map(b => {
+                            const metrics = getBranchMetrics(b.id);
+                            const financials = branchFinancials.find(f => f.branch.id === b.id);
+                            return (
+                                <tr key={b.id} className="hover:bg-gray-700/50 cursor-pointer" onClick={() => setSelectedBranchForDetails(b)}>
+                                    <td className="p-4 font-bold text-white">{b.name}</td>
+                                    <td className="p-4 text-gray-400">{b.address}</td>
+                                    <td className="p-4 text-blue-400">{users.find(u => u.id === b.managerId)?.name || 'Unassigned'}</td>
+                                    <td className="p-4 text-white">
+                                        <div className="text-xs">Cost: {settings.currency}{metrics.totalCost.toFixed(2)}</div>
+                                        <div className="text-xs text-green-400">Sales: {settings.currency}{metrics.totalSales.toFixed(2)}</div>
+                                    </td>
+                                    <td className="p-4 font-bold text-green-400">{settings.currency}{financials?.revenue.toFixed(2)}</td>
+                                    <td className="p-4 text-right flex justify-end gap-3 items-center" onClick={e => e.stopPropagation()}>
+                                        <button onClick={() => handleGenerateBranchFinancials(b, 'print')} title="Print Financial Report"><Icons.Printer className="text-gray-400 hover:text-white" size={16}/></button>
+                                        <button onClick={() => handleGenerateBranchFinancials(b, 'pdf')} title="Download Financial PDF"><Icons.FileText className="text-blue-400 hover:text-blue-300" size={16}/></button>
+                                        <button onClick={() => { setEditingBranch(b); setIsBranchModalOpen(true); }} className="text-blue-400 hover:text-blue-300"><Icons.Settings size={16}/></button>
+                                        <button onClick={() => deleteBranch(b.id)} className="text-red-400 hover:text-red-300"><Icons.Delete size={16}/></button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+              </div>
+          )}
+
+          {activeTab === 'inventory' && (
+              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
+                  <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+                        <div className="flex gap-4">
+                            <input placeholder="Search Inventory..." className="bg-gray-900 border border-gray-600 text-white p-2 rounded w-64 text-sm" value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} />
+                            <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={inventoryBranchFilter} onChange={e => setInventoryBranchFilter(e.target.value)}>
+                                <option value="">All Branches</option>
+                                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                        </div>
+                        <button onClick={() => { setEditingProduct(null); setIsProductModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> Add Product</button>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
+                            <tr>
+                                <th className="p-4">Product Name</th>
+                                <th className="p-4">SKU</th>
+                                <th className="p-4">Branch</th>
+                                <th className="p-4">Cost</th>
+                                <th className="p-4">Price</th>
+                                <th className="p-4 text-center">Stock</th>
+                                <th className="p-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-700 text-gray-200">
+                            {filteredInventory.map(p => (
+                                <tr key={p.id} className="hover:bg-gray-700/50">
+                                    <td className="p-4 font-bold text-white">{p.name}</td>
+                                    <td className="p-4 font-mono text-gray-400">{p.sku}</td>
+                                    <td className="p-4 text-blue-400">{branches.find(b => b.id === p.storeId)?.name || 'Unassigned'}</td>
+                                    <td className="p-4">{settings.currency}{p.costPrice.toFixed(2)}</td>
+                                    <td className="p-4">{settings.currency}{p.sellingPrice.toFixed(2)}</td>
+                                    <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${p.stock <= p.minStockAlert ? 'bg-red-900 text-red-400' : 'bg-green-900 text-green-400'}`}>{p.stock}</span></td>
+                                    <td className="p-4 text-right">
+                                        <button onClick={() => { setEditingProduct(p); setIsProductModalOpen(true); }} className="text-blue-400 hover:text-blue-300 mr-3"><Icons.Settings size={16} /></button>
+                                        <button onClick={() => deleteProduct(p.id)} className="text-red-400 hover:text-red-300"><Icons.Delete size={16} /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                  </div>
+              </div>
+          )}
+
+          {activeTab === 'transactions' && (
+              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
+                   <div className="p-6 border-b border-gray-700 flex flex-wrap gap-4 items-center">
+                       <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
+                       <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+                       <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterCashier} onChange={e => setFilterCashier(e.target.value)}>
+                           <option value="">All Cashiers</option>
+                           {users.filter(u => u.role === Role.CASHIER).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                       </select>
+                   </div>
+                   <div className="flex-1 overflow-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
+                                <tr><th>Date</th><th>Branch</th><th>Cashier</th><th>Items</th><th>Total</th><th>Status</th></tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-700 text-gray-200">
+                                {filteredTransactions.map(t => (
+                                    <tr key={t.id} className="hover:bg-gray-700/50">
+                                        <td className="p-4">{new Date(t.date).toLocaleString()}</td>
+                                        <td className="p-4 text-blue-400">{branches.find(b => b.id === t.storeId)?.name}</td>
+                                        <td className="p-4">{t.cashierName}</td>
+                                        <td className="p-4">{t.items.length}</td>
+                                        <td className="p-4 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td>
+                                        <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${t.status === 'COMPLETED' ? 'bg-green-900 text-green-400' : 'bg-orange-900 text-orange-400'}`}>{t.status}</span></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                   </div>
+              </div>
+          )}
+
+          {activeTab === 'expenses' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                   <div className="lg:col-span-1 space-y-6">
+                       <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+                           <h3 className="font-bold text-white mb-4">Expense Categories</h3>
+                           <div className="flex gap-2 mb-4">
+                               <input className="bg-gray-900 border border-gray-600 rounded p-2 text-sm w-full text-white" placeholder="New Category" value={newExpCatName} onChange={e=>setNewExpCatName(e.target.value)}/>
+                               <button onClick={handleAddExpenseCategory} className="bg-blue-600 text-white p-2 rounded"><Icons.Add size={16}/></button>
+                           </div>
+                           <div className="space-y-2 max-h-60 overflow-y-auto">
+                               {expenseCategories.map(c => (
+                                   <div key={c.id} className="flex justify-between items-center p-2 bg-gray-900 rounded border border-gray-700">
+                                       <span className="text-sm text-gray-300">{c.name}</span>
+                                       <button onClick={()=>deleteExpenseCategory(c.id)} className="text-red-400 hover:text-red-300"><Icons.Delete size={14}/></button>
+                                   </div>
+                               ))}
+                           </div>
+                       </div>
+                       <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+                            <h3 className="font-bold text-white mb-4">Filters</h3>
+                            <select className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded mb-2" value={expenseFilterStatus} onChange={e=>setExpenseFilterStatus(e.target.value)}>
+                                <option value="ALL">All Statuses</option>
+                                <option value={ExpenseStatus.PENDING}>Pending</option>
+                                <option value={ExpenseStatus.APPROVED}>Approved</option>
+                                <option value={ExpenseStatus.REJECTED}>Rejected</option>
+                            </select>
+                       </div>
+                   </div>
+                   
+                   <div className="lg:col-span-2 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-gray-700">
+                             <h3 className="font-bold text-white">Global Expense Requests</h3>
+                        </div>
+                        <div className="flex-1 overflow-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0"><tr><th>Date</th><th>Branch</th><th>User</th><th>Category</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+                                <tbody className="divide-y divide-gray-700 text-gray-200">
+                                    {filteredExpenses.map(e => (
+                                        <tr key={e.id} className="hover:bg-gray-700/50">
+                                            <td className="p-3">{new Date(e.date).toLocaleDateString()}</td>
+                                            <td className="p-3 text-blue-400">{branches.find(b=>b.id===e.storeId)?.name}</td>
+                                            <td className="p-3">{e.requestedByName}</td>
+                                            <td className="p-3">{e.categoryName}</td>
+                                            <td className="p-3 font-bold">{settings.currency}{e.amount.toFixed(2)}</td>
+                                            <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs ${e.status===ExpenseStatus.APPROVED?'bg-green-900 text-green-400':e.status===ExpenseStatus.REJECTED?'bg-red-900 text-red-400':'bg-orange-900 text-orange-400'}`}>{e.status}</span></td>
+                                            <td className="p-3 flex gap-2">
+                                                {e.status === ExpenseStatus.PENDING && (
+                                                    <>
+                                                    <button onClick={()=>updateExpense({...e, status: ExpenseStatus.APPROVED})} className="text-green-400 hover:text-green-300"><Icons.Check size={16}/></button>
+                                                    <button onClick={()=>updateExpense({...e, status: ExpenseStatus.REJECTED})} className="text-red-400 hover:text-red-300"><Icons.Close size={16}/></button>
+                                                    </>
+                                                )}
+                                                <button onClick={()=>deleteExpense(e.id)} className="text-gray-500 hover:text-white"><Icons.Delete size={16}/></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                   </div>
+              </div>
+          )}
+
+          {activeTab === 'activity' && (
+              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                  <div className="p-6 border-b border-gray-700"><h2 className="text-lg font-bold text-white">System Activity Logs</h2></div>
+                  <div className="overflow-auto max-h-[calc(100vh-200px)]">
+                      <table className="w-full text-left text-sm">
+                          <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0"><tr><th className="p-4">Timestamp</th><th className="p-4">User</th><th className="p-4">Role</th><th className="p-4">Action</th><th className="p-4">Details</th></tr></thead>
+                          <tbody className="divide-y divide-gray-700 text-gray-200">
+                              {activityLogs.map(log => (
+                                  <tr key={log.id} className="hover:bg-gray-700/50">
+                                      <td className="p-4 whitespace-nowrap text-gray-400">{new Date(log.timestamp).toLocaleString()}</td>
+                                      <td className="p-4 font-bold">{log.userName}</td>
+                                      <td className="p-4 text-xs">{log.userRole}</td>
+                                      <td className="p-4"><span className="bg-gray-700 px-2 py-1 rounded text-xs">{log.action}</span></td>
+                                      <td className="p-4 text-gray-300">{log.details}</td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+          )}
+
           {activeTab === 'settings' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
@@ -529,6 +737,25 @@ export const SuperAdmin = () => {
                   </div>
               </div>
           )}
+          
+          {activeTab === 'profile' && (
+             <div className="max-w-md mx-auto bg-gray-800 rounded-xl border border-gray-700 p-8">
+                 <div className="text-center mb-6">
+                     <div className="w-24 h-24 bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center border-4 border-gray-600"><Icons.User size={48} className="text-gray-400"/></div>
+                     <h2 className="text-2xl font-bold text-white">{user?.name}</h2>
+                     <p className="text-red-400 font-bold">SUPER ADMIN</p>
+                 </div>
+                 {isEditingProfile ? (
+                     <form onSubmit={handleUpdateProfile} className="space-y-4">
+                         <input name="name" defaultValue={user?.name} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Full Name"/>
+                         <input name="username" defaultValue={user?.username} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Username"/>
+                         <div className="flex gap-2"><button type="button" onClick={()=>setIsEditingProfile(false)} className="flex-1 bg-gray-700 text-white py-2 rounded">Cancel</button><button className="flex-1 bg-blue-600 text-white py-2 rounded font-bold">Save</button></div>
+                     </form>
+                 ) : (
+                     <button onClick={()=>setIsEditingProfile(true)} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold">Edit Profile</button>
+                 )}
+             </div>
+          )}
 
           {/* ... (Modal Logic Preserved) ... */}
           {/* User Modal */}
@@ -565,6 +792,35 @@ export const SuperAdmin = () => {
                           <div className="flex gap-2"><button type="button" onClick={() => setIsBranchModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save</button></div>
                       </form>
                   </div>
+              </div>
+          )}
+          
+          {/* Branch Details Modal */}
+          {selectedBranchForDetails && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                   <div className="bg-gray-800 rounded-xl w-full max-w-4xl border border-gray-700 flex flex-col max-h-[90vh]">
+                       <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                           <h2 className="text-xl font-bold text-white">{selectedBranchForDetails.name} Inventory</h2>
+                           <button onClick={()=>setSelectedBranchForDetails(null)}><Icons.Close className="text-white"/></button>
+                       </div>
+                       <div className="flex-1 overflow-auto p-4">
+                           <table className="w-full text-left text-sm text-gray-300">
+                               <thead className="bg-gray-900 font-bold sticky top-0"><tr><th>Product</th><th>SKU</th><th>Cost</th><th>Price</th><th>Stock</th><th>Last Updated</th></tr></thead>
+                               <tbody className="divide-y divide-gray-700">
+                                   {branchDetailsProducts.map(p => (
+                                       <tr key={p.id}>
+                                           <td className="p-3 text-white font-bold">{p.name}</td>
+                                           <td className="p-3 font-mono text-xs">{p.sku}</td>
+                                           <td className="p-3">{settings.currency}{p.costPrice.toFixed(2)}</td>
+                                           <td className="p-3">{settings.currency}{p.sellingPrice.toFixed(2)}</td>
+                                           <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs ${p.stock<p.minStockAlert?'bg-red-900 text-red-400':'bg-green-900 text-green-400'}`}>{p.stock}</span></td>
+                                           <td className="p-3 text-xs">{p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : 'N/A'}</td>
+                                       </tr>
+                                   ))}
+                               </tbody>
+                           </table>
+                       </div>
+                   </div>
               </div>
           )}
 

@@ -34,8 +34,28 @@ export const Login = () => {
         .single();
 
       if (!profile) {
-        setError('Login successful, but user profile not found. Please contact support to create your profile.');
-        await supabase.auth.signOut(); // Force sign out if no profile
+        // Auto-create profile
+        const newProfile = {
+          id: authData.user.id,
+          username: authData.user.email,
+          name: authData.user.email?.split('@')[0] || 'User',
+          role: 'SUPER_ADMIN', // Temporary: Make first user SUPER_ADMIN or default to CASHIER. Let's use SUPER_ADMIN for this user since they are setting it up.
+          active: true,
+          expense_limit: 0
+        };
+
+        const { error: createError } = await supabase.from('profiles').insert([newProfile]);
+
+        if (createError) {
+          setError('Profile not found and could not be created: ' + createError.message);
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        // Success - Reload to let App handle the new user state
+        window.location.reload();
+        return;
       }
     }
     setLoading(false);

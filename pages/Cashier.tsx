@@ -1,11 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Product, CartItem, PaymentMethod, TransactionStatus, Transaction, RefundItem, PaymentPart, Expense, ExpenseStatus } from '../types';
 import { Icons } from '../components/ui/Icons';
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const Cashier = () => {
@@ -61,6 +61,21 @@ export const Cashier = () => {
     const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Real-time Stock Alerts
+  useEffect(() => {
+    if (user?.storeId) {
+      const lowStock = availableProducts.filter(p => p.stock <= p.minStockAlert && p.stock > 0);
+      const outOfStock = availableProducts.filter(p => p.stock === 0);
+
+      if (lowStock.length > 0) {
+        addNotification(`${lowStock.length} items are running low on stock!`, 'warning');
+      }
+      if (outOfStock.length > 0) {
+        addNotification(`${outOfStock.length} items are out of stock!`, 'error');
+      }
+    }
+  }, [products, user?.storeId, addNotification]); // Monitor product changes
 
   // End of Day Metrics
   const today = new Date().toLocaleDateString();
@@ -168,6 +183,12 @@ export const Cashier = () => {
       setShowSuccessModal(false);
       setCompletedTransaction(null);
       setCart([]);
+  };
+
+  const handleClearCart = () => {
+    if (cart.length > 0 && window.confirm('Are you sure you want to clear the cart? This action cannot be undone.')) {
+      setCart([]);
+    }
   };
 
   const handleAddDebtPayment = () => {
@@ -479,7 +500,6 @@ export const Cashier = () => {
       const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `end_of_day_${today.replace(/\//g, '-')}.csv`; link.click(); 
   };
   const handleDownloadEndDayPDF = () => { 
-      // PDF generation logic preserved
       const doc = new jsPDF(); 
       doc.setFontSize(18); doc.text(settings.name, 14, 20); 
       doc.setFontSize(14); doc.text(currentBranch?.name || 'Branch', 14, 28); 
@@ -563,7 +583,7 @@ export const Cashier = () => {
                          </div>
                      </div>
                      <div className="w-96 bg-gray-800 rounded-xl shadow-sm border border-gray-700 flex flex-col overflow-hidden">
-                        <div className="p-3 border-b border-gray-700 bg-gray-800 flex justify-between items-center"><h2 className="font-bold text-gray-200 flex items-center gap-2"><Icons.POS size={18}/> Cart</h2><button onClick={() => setCart([])} className="text-xs text-red-400 font-bold hover:underline">Clear</button></div>
+                        <div className="p-3 border-b border-gray-700 bg-gray-800 flex justify-between items-center"><h2 className="font-bold text-gray-200 flex items-center gap-2"><Icons.POS size={18}/> Cart</h2><button onClick={handleClearCart} className="text-xs text-red-400 font-bold hover:underline">Clear</button></div>
                         <div className="flex-1 overflow-y-auto p-3 space-y-2">
                             {cart.map(item => (
                                 <div key={item.id} className="flex justify-between items-center bg-gray-700 border border-gray-600 p-2 rounded-lg shadow-sm">
@@ -616,7 +636,6 @@ export const Cashier = () => {
                 </div>
             )}
 
-            {/* Other tabs (returns, debts, endofday, history, inventory, profile) preserved identically */}
             {activeTab === 'returns' && (
                 <div className="bg-gray-800 p-6 rounded-xl shadow-sm h-full flex flex-col border border-gray-700">
                     <div className="flex gap-4 mb-6">

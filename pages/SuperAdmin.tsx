@@ -449,7 +449,7 @@ export const SuperAdmin = () => {
                                 {users.map(u => (
                                     <tr key={u.id} className="hover:bg-gray-700/50">
                                         <td className="p-4 font-bold text-white">{u.name} <br /><span className="text-gray-500 font-normal">@{u.username}</span></td>
-                                        <td className="p-4"><span className="bg-gray-700 text-white px-2 py-1 rounded text-xs">{u.role}</span></td>
+                                        <td className="p-4"><span className="bg-gray-700 text-white px-2 py-1 rounded text-xs">{u.role === Role.ADMIN ? 'BRANCH MANAGER' : u.role}</span></td>
                                         <td className="p-4 text-blue-400">{branches.find(b => b.id === u.storeId)?.name || 'Global'}</td>
                                         <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${u.active ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>{u.active ? 'Active' : 'Suspended'}</span></td>
                                         <td className="p-4 text-right flex justify-end gap-3 items-center">
@@ -768,7 +768,7 @@ export const SuperAdmin = () => {
                                 <input name="username" defaultValue={editingUser?.username} placeholder="Username" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                                 {!editingUser && <input name="password" type="password" placeholder="Password" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />}
                                 <div className="grid grid-cols-2 gap-2">
-                                    <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value={Role.ADMIN}>Admin</option><option value={Role.CASHIER}>Cashier</option></select>
+                                    <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value={Role.ADMIN}>Branch Manager</option><option value={Role.CASHIER}>Cashier</option></select>
                                     <select name="storeId" defaultValue={editingUser?.storeId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="">No Branch (Global)</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
                                 </div>
                                 <div><label className="block text-xs font-bold text-gray-400 mb-1">Expense Limit ({settings.currency})</label><input type="number" name="expenseLimit" defaultValue={editingUser?.expenseLimit} placeholder="0.00" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" /></div>

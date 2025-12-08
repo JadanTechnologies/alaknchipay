@@ -5,11 +5,11 @@ import { Product, CartItem, PaymentMethod, TransactionStatus, Transaction, Refun
 import { Icons } from '../components/ui/Icons';
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const Cashier = () => {
-  const { products, user, addTransaction, updateTransaction, transactions, settings, logout, processRefund, branches, categories, addNotification, expenses, addExpense } = useStore();
+  const { products, user, addTransaction, updateTransaction, transactions, settings, logout, processRefund, branches, categories, addNotification, expenses, addExpense, expenseCategories } = useStore();
   const [activeTab, setActiveTab] = useState<'pos' | 'dashboard' | 'history' | 'debts' | 'inventory' | 'endofday' | 'returns' | 'profile' | 'expenses'>('pos');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -353,6 +353,7 @@ export const Cashier = () => {
   };
 
   const handlePrintEndOfDay = () => {
+    // End of Day logic preserved
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -448,7 +449,28 @@ export const Cashier = () => {
   // Expenses & Reports
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseReason, setExpenseReason] = useState('');
-  const handleSubmitExpense = (e: React.FormEvent) => { e.preventDefault(); if (!user) return; addExpense({ id: nanoid(), amount: parseFloat(expenseAmount), description: expenseReason, status: ExpenseStatus.PENDING, requestedBy: user.id, requestedByName: user.name, storeId: user.storeId, date: new Date().toISOString() }); setExpenseAmount(''); setExpenseReason(''); };
+  const [expenseCategory, setExpenseCategory] = useState('');
+
+  const handleSubmitExpense = (e: React.FormEvent) => { 
+      e.preventDefault(); 
+      if (!user) return; 
+      const cat = expenseCategories.find(c => c.id === expenseCategory);
+      addExpense({ 
+          id: nanoid(), 
+          amount: parseFloat(expenseAmount), 
+          description: expenseReason, 
+          categoryId: cat?.id,
+          categoryName: cat?.name,
+          status: ExpenseStatus.PENDING, 
+          requestedBy: user.id, 
+          requestedByName: user.name, 
+          storeId: user.storeId, 
+          date: new Date().toISOString() 
+      }); 
+      setExpenseAmount(''); 
+      setExpenseReason(''); 
+      setExpenseCategory('');
+  };
 
   const handleDownloadDayReport = () => { 
       const headers = ['Tx ID', 'Time', 'Total', 'Payment', 'Status']; const rows = todaysTxs.map(t => [t.id, new Date(t.date).toLocaleTimeString(), t.total.toFixed(2), t.paymentMethod, t.status]); 
@@ -457,6 +479,7 @@ export const Cashier = () => {
       const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `end_of_day_${today.replace(/\//g, '-')}.csv`; link.click(); 
   };
   const handleDownloadEndDayPDF = () => { 
+      // PDF generation logic preserved
       const doc = new jsPDF(); 
       doc.setFontSize(18); doc.text(settings.name, 14, 20); 
       doc.setFontSize(14); doc.text(currentBranch?.name || 'Branch', 14, 28); 
@@ -572,6 +595,13 @@ export const Cashier = () => {
                         <h3 className="font-bold text-lg mb-4 text-white">Request Expense</h3>
                         <form onSubmit={handleSubmitExpense} className="space-y-4">
                             <div><label className="text-sm font-bold text-gray-400">Amount</label><input type="number" required placeholder="0.00" className="w-full p-2 border border-gray-600 bg-gray-900 text-white rounded" value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)} /></div>
+                            <div>
+                                <label className="text-sm font-bold text-gray-400">Category</label>
+                                <select className="w-full p-2 border border-gray-600 bg-gray-900 text-white rounded" value={expenseCategory} onChange={e => setExpenseCategory(e.target.value)} required>
+                                    <option value="">Select Category</option>
+                                    {expenseCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
                             <div><label className="text-sm font-bold text-gray-400">Description</label><textarea required placeholder="Reason for expense..." rows={4} className="w-full p-2 border border-gray-600 bg-gray-900 text-white rounded" value={expenseReason} onChange={e => setExpenseReason(e.target.value)}></textarea></div>
                             <button type="submit" className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700">Submit Request</button>
                         </form>
@@ -579,13 +609,14 @@ export const Cashier = () => {
                     <div className="flex-1 bg-gray-800 p-6 rounded-xl shadow-sm overflow-y-auto border border-gray-700">
                         <h3 className="font-bold text-lg mb-4 text-white">My Requests</h3>
                         <table className="w-full text-left text-sm">
-                            <thead className="bg-gray-900/50 font-bold text-gray-400"><tr><th className="p-3">Date</th><th className="p-3">Desc</th><th className="p-3">Amount</th><th className="p-3">Status</th></tr></thead>
-                            <tbody className="divide-y divide-gray-700">{myExpenses.map(e => (<tr key={e.id}><td className="p-3 text-gray-400">{new Date(e.date).toLocaleDateString()}</td><td className="p-3 text-gray-300">{e.description}</td><td className="p-3 font-bold text-white">{e.amount}</td><td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${e.status==='APPROVED'?'bg-green-900/50 text-green-400':e.status==='REJECTED'?'bg-red-900/50 text-red-400':'bg-orange-900/50 text-orange-400'}`}>{e.status}</span></td></tr>))}</tbody>
+                            <thead className="bg-gray-900/50 font-bold text-gray-400"><tr><th className="p-3">Date</th><th className="p-3">Category</th><th className="p-3">Desc</th><th className="p-3">Amount</th><th className="p-3">Status</th></tr></thead>
+                            <tbody className="divide-y divide-gray-700">{myExpenses.map(e => (<tr key={e.id}><td className="p-3 text-gray-400">{new Date(e.date).toLocaleDateString()}</td><td className="p-3 text-gray-300 font-bold">{e.categoryName || '-'}</td><td className="p-3 text-gray-300">{e.description}</td><td className="p-3 font-bold text-white">{e.amount}</td><td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${e.status==='APPROVED'?'bg-green-900/50 text-green-400':e.status==='REJECTED'?'bg-red-900/50 text-red-400':'bg-orange-900/50 text-orange-400'}`}>{e.status}</span></td></tr>))}</tbody>
                         </table>
                     </div>
                 </div>
             )}
 
+            {/* Other tabs (returns, debts, endofday, history, inventory, profile) preserved identically */}
             {activeTab === 'returns' && (
                 <div className="bg-gray-800 p-6 rounded-xl shadow-sm h-full flex flex-col border border-gray-700">
                     <div className="flex gap-4 mb-6">
@@ -807,7 +838,7 @@ export const Cashier = () => {
             )}
         </div>
 
-        {/* Modals */}
+        {/* Modals for Debt, Recall, Checkout, Success - Preserved but omitted from this snippet for brevity, assumed fully present in logic */}
         {selectedDebtTx && (
             <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
                 <div className="bg-gray-800 p-6 rounded-xl w-96 shadow-2xl border border-gray-700">
@@ -818,7 +849,7 @@ export const Cashier = () => {
                 </div>
             </div>
         )}
-
+        
         {isRecallModalOpen && (
             <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
                 <div className="bg-gray-800 p-6 rounded-xl w-[500px] max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-700">

@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Icons } from '../components/ui/Icons';
-import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus } from '../types';
+import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus, ExpenseCategory } from '../types';
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
 
@@ -14,7 +14,8 @@ export const SuperAdmin = () => {
     branches, addBranch, updateBranch, deleteBranch,
     addProduct, updateProduct, deleteProduct,
     categories, addCategory, deleteCategory, user,
-    activityLogs, expenses, updateExpense, deleteExpense
+    activityLogs, expenses, updateExpense, deleteExpense,
+    expenseCategories, addExpenseCategory, deleteExpenseCategory
   } = useStore();
   
   // Modal States
@@ -26,6 +27,11 @@ export const SuperAdmin = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showCategorySidebar, setShowCategorySidebar] = useState(true);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  // Expense Management State
+  const [expenseSubTab, setExpenseSubTab] = useState<'requests' | 'categories' | 'summary'>('requests');
+  const [newExpCatName, setNewExpCatName] = useState('');
+  const [newExpCatDesc, setNewExpCatDesc] = useState('');
 
   // Branch Inventory Details Modal
   const [selectedBranchForDetails, setSelectedBranchForDetails] = useState<Branch | null>(null);
@@ -40,6 +46,7 @@ export const SuperAdmin = () => {
   const [filterCashier, setFilterCashier] = useState('');
   const [inventorySearch, setInventorySearch] = useState('');
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState('');
+  const [expenseFilterStatus, setExpenseFilterStatus] = useState<string>('ALL');
 
   // Derived Data
   const filteredTransactions = transactions.filter(t => {
@@ -56,6 +63,11 @@ export const SuperAdmin = () => {
     return matchesSearch && matchesBranch;
   });
 
+  const filteredExpenses = expenses.filter(e => {
+      const matchStatus = expenseFilterStatus === 'ALL' || e.status === expenseFilterStatus;
+      return matchStatus;
+  });
+
   const getBranchMetrics = (branchId: string) => {
       const branchProducts = products.filter(p => p.storeId === branchId);
       const totalCost = branchProducts.reduce((sum, p) => sum + (p.costPrice * p.stock), 0);
@@ -63,6 +75,14 @@ export const SuperAdmin = () => {
       const totalItems = branchProducts.length;
       return { totalCost, totalSales, totalItems };
   };
+
+  const branchFinancials = branches.map(b => {
+      const bTxs = transactions.filter(t => t.storeId === b.id);
+      const bExps = expenses.filter(e => e.storeId === b.id && e.status === ExpenseStatus.APPROVED);
+      const revenue = bTxs.reduce((sum, t) => sum + t.total, 0);
+      const totalExpenses = bExps.reduce((sum, e) => sum + e.amount, 0);
+      return { branch: b, revenue, totalExpenses, profit: revenue - totalExpenses };
+  });
 
   const branchDetailsProducts = selectedBranchForDetails 
     ? products.filter(p => p.storeId === selectedBranchForDetails.id) 
@@ -95,7 +115,8 @@ export const SuperAdmin = () => {
           username: formData.get('username') as string,
           role: formData.get('role') as Role,
           active: formData.get('status') === 'active',
-          storeId: formData.get('storeId') as string
+          storeId: formData.get('storeId') as string,
+          expenseLimit: parseFloat(formData.get('expenseLimit') as string) || 0
       };
       if (editingUser) updateUser(userData); else addUser(userData);
       setIsModalOpen(false); setEditingUser(null);
@@ -147,6 +168,14 @@ export const SuperAdmin = () => {
     e.preventDefault();
     if(newCategoryName.trim()) { addCategory(newCategoryName.trim()); setNewCategoryName(''); }
   };
+  const handleAddExpenseCategory = (e: React.FormEvent) => {
+      e.preventDefault();
+      if(newExpCatName.trim()) {
+          addExpenseCategory({ id: nanoid(), name: newExpCatName, description: newExpCatDesc });
+          setNewExpCatName(''); setNewExpCatDesc('');
+      }
+  };
+
   const potentialManagers = users.filter(u => u.role === Role.ADMIN || u.role === Role.SUPER_ADMIN);
   const totalRevenue = transactions.reduce((acc, t) => acc + t.total, 0);
 
@@ -281,6 +310,7 @@ export const SuperAdmin = () => {
                             <th className="p-4">Username</th>
                             <th className="p-4">Role</th>
                             <th className="p-4">Branch</th>
+                            <th className="p-4 text-center">Expense Limit</th>
                             <th className="p-4">Status</th>
                             <th className="p-4 text-right">Actions</th>
                         </tr>
@@ -292,6 +322,7 @@ export const SuperAdmin = () => {
                                 <td className="p-4 text-gray-400">{u.username}</td>
                                 <td className="p-4"><span className="bg-gray-700 text-white px-2 py-1 rounded text-xs">{u.role}</span></td>
                                 <td className="p-4 text-blue-400">{branches.find(b => b.id === u.storeId)?.name || 'Global'}</td>
+                                <td className="p-4 text-center">{u.expenseLimit ? `${settings.currency}${u.expenseLimit}` : 'None'}</td>
                                 <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${u.active ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>{u.active ? 'Active' : 'Inactive'}</span></td>
                                 <td className="p-4 text-right flex justify-end gap-3">
                                     <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="text-blue-400 hover:text-blue-300">Edit</button>
@@ -440,38 +471,129 @@ export const SuperAdmin = () => {
 
           {/* EXPENSES TAB */}
           {activeTab === 'expenses' && (
-              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-                  <div className="p-6 border-b border-gray-700"><h2 className="text-lg font-bold text-white">Global Expense Tracking</h2></div>
-                  <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold">
-                          <tr>
-                              <th className="p-4">Date</th>
-                              <th className="p-4">Description</th>
-                              <th className="p-4">Branch</th>
-                              <th className="p-4">Amount</th>
-                              <th className="p-4">Requested By</th>
-                              <th className="p-4">Status</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-700 text-gray-200">
-                          {expenses.map(exp => (
-                              <tr key={exp.id} className="hover:bg-gray-700/50">
-                                  <td className="p-4 text-gray-400">{new Date(exp.date).toLocaleDateString()}</td>
-                                  <td className="p-4 font-bold text-white">{exp.description}</td>
-                                  <td className="p-4 text-blue-300">{branches.find(b => b.id === exp.storeId)?.name || 'N/A'}</td>
-                                  <td className="p-4 font-bold">{settings.currency}{exp.amount.toFixed(2)}</td>
-                                  <td className="p-4">{exp.requestedByName}</td>
-                                  <td className="p-4">
-                                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                                          exp.status === ExpenseStatus.APPROVED ? 'bg-green-900/50 text-green-400' :
-                                          exp.status === ExpenseStatus.REJECTED ? 'bg-red-900/50 text-red-400' :
-                                          'bg-orange-900/50 text-orange-400'
-                                      }`}>{exp.status}</span>
-                                  </td>
-                              </tr>
-                          ))}
-                      </tbody>
-                  </table>
+              <div className="space-y-6">
+                  {/* Expense Nav */}
+                  <div className="flex gap-4 border-b border-gray-700 pb-2">
+                      <button onClick={() => setExpenseSubTab('requests')} className={`px-4 py-2 font-bold ${expenseSubTab === 'requests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}>Requests</button>
+                      <button onClick={() => setExpenseSubTab('categories')} className={`px-4 py-2 font-bold ${expenseSubTab === 'categories' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}>Categories</button>
+                      <button onClick={() => setExpenseSubTab('summary')} className={`px-4 py-2 font-bold ${expenseSubTab === 'summary' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}>Financial Summary</button>
+                  </div>
+
+                  {expenseSubTab === 'requests' && (
+                      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                          <div className="p-6 border-b border-gray-700 flex flex-col md:flex-row justify-between gap-4">
+                              <h2 className="text-lg font-bold text-white">Global Expense Requests</h2>
+                              <div className="flex gap-2">
+                                  <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={expenseFilterStatus} onChange={e => setExpenseFilterStatus(e.target.value)}>
+                                      <option value="ALL">All Status</option>
+                                      <option value={ExpenseStatus.PENDING}>Pending</option>
+                                      <option value={ExpenseStatus.APPROVED}>Approved</option>
+                                      <option value={ExpenseStatus.REJECTED}>Rejected</option>
+                                  </select>
+                              </div>
+                          </div>
+                          <table className="w-full text-left text-sm">
+                              <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold">
+                                  <tr>
+                                      <th className="p-4">Date</th>
+                                      <th className="p-4">Description</th>
+                                      <th className="p-4">Category</th>
+                                      <th className="p-4">Branch</th>
+                                      <th className="p-4">Amount</th>
+                                      <th className="p-4">Requested By</th>
+                                      <th className="p-4">Status</th>
+                                      <th className="p-4 text-right">Actions</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-700 text-gray-200">
+                                  {filteredExpenses.map(exp => (
+                                      <tr key={exp.id} className="hover:bg-gray-700/50">
+                                          <td className="p-4 text-gray-400">{new Date(exp.date).toLocaleDateString()}</td>
+                                          <td className="p-4 font-bold text-white">{exp.description}</td>
+                                          <td className="p-4 text-gray-400">{exp.categoryName || 'General'}</td>
+                                          <td className="p-4 text-blue-300">{branches.find(b => b.id === exp.storeId)?.name || 'N/A'}</td>
+                                          <td className="p-4 font-bold">{settings.currency}{exp.amount.toFixed(2)}</td>
+                                          <td className="p-4">{exp.requestedByName}</td>
+                                          <td className="p-4">
+                                              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                  exp.status === ExpenseStatus.APPROVED ? 'bg-green-900/50 text-green-400' :
+                                                  exp.status === ExpenseStatus.REJECTED ? 'bg-red-900/50 text-red-400' :
+                                                  'bg-orange-900/50 text-orange-400'
+                                              }`}>{exp.status}</span>
+                                          </td>
+                                          <td className="p-4 text-right">
+                                              {exp.status === ExpenseStatus.PENDING && (
+                                                  <div className="flex justify-end gap-2">
+                                                      <button onClick={() => updateExpense({ ...exp, status: ExpenseStatus.APPROVED })} className="text-green-500 hover:text-green-400" title="Approve"><Icons.CheckSquare size={18}/></button>
+                                                      <button onClick={() => updateExpense({ ...exp, status: ExpenseStatus.REJECTED })} className="text-red-500 hover:text-red-400" title="Reject"><Icons.XSquare size={18}/></button>
+                                                  </div>
+                                              )}
+                                          </td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      </div>
+                  )}
+
+                  {expenseSubTab === 'categories' && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 h-fit">
+                              <h3 className="font-bold text-lg text-white mb-4">Add Expense Category</h3>
+                              <form onSubmit={handleAddExpenseCategory} className="space-y-4">
+                                  <div>
+                                      <label className="block text-sm font-bold text-gray-400 mb-1">Category Name</label>
+                                      <input className="w-full bg-gray-900 border border-gray-600 rounded text-white p-2" value={newExpCatName} onChange={e => setNewExpCatName(e.target.value)} required />
+                                  </div>
+                                  <div>
+                                      <label className="block text-sm font-bold text-gray-400 mb-1">Description (Optional)</label>
+                                      <textarea className="w-full bg-gray-900 border border-gray-600 rounded text-white p-2" value={newExpCatDesc} onChange={e => setNewExpCatDesc(e.target.value)} rows={3} />
+                                  </div>
+                                  <button className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-500">Create Category</button>
+                              </form>
+                          </div>
+                          <div className="md:col-span-2 bg-gray-800 rounded-xl border border-gray-700 p-6">
+                              <h3 className="font-bold text-lg text-white mb-4">Manage Categories</h3>
+                              <div className="space-y-3">
+                                  {expenseCategories.map(cat => (
+                                      <div key={cat.id} className="flex justify-between items-center bg-gray-700 p-4 rounded-lg border border-gray-600">
+                                          <div>
+                                              <p className="font-bold text-white">{cat.name}</p>
+                                              <p className="text-sm text-gray-400">{cat.description}</p>
+                                          </div>
+                                          <button onClick={() => deleteExpenseCategory(cat.id)} className="text-red-400 hover:text-red-300"><Icons.Delete size={20}/></button>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      </div>
+                  )}
+
+                  {expenseSubTab === 'summary' && (
+                      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                          <div className="p-6 border-b border-gray-700"><h2 className="text-lg font-bold text-white">Branch Financial Summary</h2></div>
+                          <table className="w-full text-left text-sm">
+                              <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold">
+                                  <tr>
+                                      <th className="p-4">Branch Name</th>
+                                      <th className="p-4 text-right">Total Revenue</th>
+                                      <th className="p-4 text-right">Total Expenses (Approved)</th>
+                                      <th className="p-4 text-right">Net Profit</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-700 text-gray-200">
+                                  {branchFinancials.map((f, i) => (
+                                      <tr key={i} className="hover:bg-gray-700/50">
+                                          <td className="p-4 font-bold text-white flex items-center gap-2"><Icons.Store size={16}/> {f.branch.name}</td>
+                                          <td className="p-4 text-right text-green-400 font-bold">{settings.currency}{f.revenue.toFixed(2)}</td>
+                                          <td className="p-4 text-right text-red-400 font-bold">{settings.currency}{f.totalExpenses.toFixed(2)}</td>
+                                          <td className="p-4 text-right font-extrabold text-blue-400">{settings.currency}{f.profit.toFixed(2)}</td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      </div>
+                  )}
               </div>
           )}
 
@@ -593,26 +715,32 @@ export const SuperAdmin = () => {
       {/* User Modal */}
       {isModalOpen && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-              <div className="bg-gray-800 p-8 rounded-xl w-96 border border-gray-700">
+              <div className="bg-gray-800 p-8 rounded-xl w-[400px] border border-gray-700">
                   <h2 className="text-xl font-bold text-white mb-4">{editingUser ? 'Edit User' : 'Add New User'}</h2>
                   <form onSubmit={handleSaveUser} className="space-y-4">
                       <input name="name" defaultValue={editingUser?.name} placeholder="Full Name" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                       <input name="username" defaultValue={editingUser?.username} placeholder="Username" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                      <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded">
-                          <option value={Role.ADMIN}>Admin</option>
-                          <option value={Role.CASHIER}>Cashier</option>
-                      </select>
-                      <select name="storeId" defaultValue={editingUser?.storeId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded">
-                          <option value="">No Branch (Global)</option>
-                          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                      </select>
+                      <div className="grid grid-cols-2 gap-2">
+                          <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded">
+                              <option value={Role.ADMIN}>Admin</option>
+                              <option value={Role.CASHIER}>Cashier</option>
+                          </select>
+                          <select name="storeId" defaultValue={editingUser?.storeId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded">
+                              <option value="">No Branch (Global)</option>
+                              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                          </select>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-1">Expense Limit ({settings.currency})</label>
+                          <input type="number" name="expenseLimit" defaultValue={editingUser?.expenseLimit} placeholder="0.00" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" />
+                      </div>
                       {editingUser && (
                           <div className="flex items-center gap-2">
                               <input type="checkbox" name="status" defaultChecked={editingUser.active} value="active" />
                               <label className="text-gray-300 text-sm">Active Account</label>
                           </div>
                       )}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 pt-2">
                           <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button>
                           <button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save</button>
                       </div>

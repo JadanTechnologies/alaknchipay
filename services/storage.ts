@@ -1,5 +1,5 @@
 
-import { User, Product, Transaction, Role, StoreSettings, Branch, Category, ActivityLog, Expense } from '../types';
+import { User, Product, Transaction, Role, StoreSettings, Branch, Category, ActivityLog, Expense, ExpenseCategory } from '../types';
 
 const DEFAULT_BRANCHES: Branch[] = [
   { id: 'store1', name: 'Lagos Island Branch', address: '123 Marina, Lagos', phone: '080-1234-5678' },
@@ -9,9 +9,9 @@ const DEFAULT_BRANCHES: Branch[] = [
 // Initial Seed Data
 const DEFAULT_USERS: User[] = [
   { id: 'u1', name: 'Super Admin', username: 'super', role: Role.SUPER_ADMIN, active: true },
-  { id: 'u2', name: 'Musa Yaradua', username: 'admin', role: Role.ADMIN, active: true, storeId: 'store1' },
-  { id: 'u3', name: 'Nneka Okeke', username: 'cashier', role: Role.CASHIER, active: true, storeId: 'store1' },
-  { id: 'u4', name: 'Emeka Obi', username: 'manager2', role: Role.ADMIN, active: true, storeId: 'store2' },
+  { id: 'u2', name: 'Musa Yaradua', username: 'admin', role: Role.ADMIN, active: true, storeId: 'store1', expenseLimit: 50000 },
+  { id: 'u3', name: 'Nneka Okeke', username: 'cashier', role: Role.CASHIER, active: true, storeId: 'store1', expenseLimit: 10000 },
+  { id: 'u4', name: 'Emeka Obi', username: 'manager2', role: Role.ADMIN, active: true, storeId: 'store2', expenseLimit: 50000 },
 ];
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -19,6 +19,14 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat2', name: 'Accessories' },
   { id: 'cat3', name: 'Groceries' },
   { id: 'cat4', name: 'Clothing' },
+];
+
+const DEFAULT_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  { id: 'expcat1', name: 'Utilities', description: 'Electricity, Water, Internet' },
+  { id: 'expcat2', name: 'Supplies', description: 'Office supplies, cleaning materials' },
+  { id: 'expcat3', name: 'Maintenance', description: 'Repairs and equipment servicing' },
+  { id: 'expcat4', name: 'Transportation', description: 'Fuel, logistics, travel' },
+  { id: 'expcat5', name: 'Miscellaneous', description: 'Other expenses' },
 ];
 
 const DEFAULT_PRODUCTS: Product[] = [
@@ -42,6 +50,7 @@ const KEYS = {
   SETTINGS: 'alkanchi_settings',
   BRANCHES: 'alkanchi_branches',
   CATEGORIES: 'alkanchi_categories',
+  EXPENSE_CATEGORIES: 'alkanchi_expense_categories',
   LOGS: 'alkanchi_logs',
   EXPENSES: 'alkanchi_expenses'
 };
@@ -82,6 +91,12 @@ export const storage = {
     return data ? JSON.parse(data) : DEFAULT_CATEGORIES;
   },
   saveCategories: (categories: Category[]) => localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(categories)),
+
+  getExpenseCategories: (): ExpenseCategory[] => {
+    const data = localStorage.getItem(KEYS.EXPENSE_CATEGORIES);
+    return data ? JSON.parse(data) : DEFAULT_EXPENSE_CATEGORIES;
+  },
+  saveExpenseCategories: (categories: ExpenseCategory[]) => localStorage.setItem(KEYS.EXPENSE_CATEGORIES, JSON.stringify(categories)),
 
   getLogs: (): ActivityLog[] => {
     const data = localStorage.getItem(KEYS.LOGS);

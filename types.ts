@@ -45,12 +45,19 @@ export interface User {
   password?: string; // In a real app, this would be hashed
   active: boolean;
   storeId?: string; // Links to Branch ID
+  expenseLimit?: number; // Maximum amount they can request
 }
 
 export interface Category {
   id: string;
   name: string;
   storeId?: string; 
+}
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  description?: string;
 }
 
 export interface Product {
@@ -116,6 +123,8 @@ export interface Expense {
   id: string;
   description: string;
   amount: number;
+  categoryId?: string;
+  categoryName?: string;
   status: ExpenseStatus;
   requestedBy: string; // User ID
   requestedByName: string;

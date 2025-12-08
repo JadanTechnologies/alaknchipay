@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Product, Transaction, StoreSettings, Role, RefundItem, RefundLog, TransactionStatus, Branch, Notification, NotificationType, Category, PaymentMethod, ActivityLog, Expense, ExpenseStatus } from '../types';
+import { User, Product, Transaction, StoreSettings, Role, RefundItem, RefundLog, TransactionStatus, Branch, Notification, NotificationType, Category, PaymentMethod, ActivityLog, Expense, ExpenseStatus, ExpenseCategory } from '../types';
 import { storage } from '../services/storage';
 import { nanoid } from 'nanoid';
 
@@ -12,6 +12,7 @@ interface StoreContextType {
   settings: StoreSettings;
   branches: Branch[];
   categories: Category[];
+  expenseCategories: ExpenseCategory[];
   notifications: Notification[];
   activityLogs: ActivityLog[];
   expenses: Expense[];
@@ -22,6 +23,8 @@ interface StoreContextType {
   deleteProduct: (id: string) => void;
   addCategory: (name: string) => void;
   deleteCategory: (id: string) => void;
+  addExpenseCategory: (cat: ExpenseCategory) => void;
+  deleteExpenseCategory: (id: string) => void;
   addTransaction: (transaction: Transaction) => void;
   updateTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: string) => void;
@@ -50,6 +53,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [settings, setSettings] = useState<StoreSettings>(storage.getSettings());
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -61,6 +65,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTransactions(storage.getTransactions());
     setBranches(storage.getBranches());
     setCategories(storage.getCategories());
+    setExpenseCategories(storage.getExpenseCategories());
     setActivityLogs(storage.getLogs());
     setExpenses(storage.getExpenses());
     const savedUser = localStorage.getItem('alkanchi_currentUser');
@@ -74,6 +79,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => storage.saveSettings(settings), [settings]);
   useEffect(() => storage.saveBranches(branches), [branches]);
   useEffect(() => storage.saveCategories(categories), [categories]);
+  useEffect(() => storage.saveExpenseCategories(expenseCategories), [expenseCategories]);
   useEffect(() => storage.saveLogs(activityLogs), [activityLogs]);
   useEffect(() => storage.saveExpenses(expenses), [expenses]);
   useEffect(() => {
@@ -137,6 +143,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCategories(categories.filter(c => c.id !== id));
     addNotification('Category deleted', 'info');
     logSystemAction('CATEGORY_DELETED', `Deleted category: ${cat?.name || id}`);
+  };
+
+  const addExpenseCategory = (cat: ExpenseCategory) => {
+    setExpenseCategories([...expenseCategories, cat]);
+    addNotification(`Expense category "${cat.name}" added`, 'success');
+    logSystemAction('EXPENSE_CAT_CREATED', `Created expense category: ${cat.name}`);
+  };
+
+  const deleteExpenseCategory = (id: string) => {
+    setExpenseCategories(expenseCategories.filter(c => c.id !== id));
+    addNotification('Expense category deleted', 'info');
   };
 
   const addProduct = (p: Product) => {
@@ -340,10 +357,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <StoreContext.Provider value={{
-      user, users, products, transactions, settings, branches, notifications, categories, activityLogs, expenses,
+      user, users, products, transactions, settings, branches, notifications, categories, activityLogs, expenses, expenseCategories,
       login, logout,
       addProduct, updateProduct, deleteProduct,
       addCategory, deleteCategory,
+      addExpenseCategory, deleteExpenseCategory,
       addTransaction, updateTransaction, deleteTransaction,
       addUser, updateUser, deleteUser,
       updateSettings,

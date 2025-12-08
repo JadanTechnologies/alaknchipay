@@ -5,7 +5,7 @@ import { Product, Role, Transaction, RefundItem, PaymentMethod, TransactionStatu
 import { Icons } from '../components/ui/Icons';
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const Admin = () => {
@@ -13,7 +13,7 @@ export const Admin = () => {
     user, products: allProducts, transactions: allTransactions, 
     addProduct, updateProduct, deleteProduct, settings, updateBranch, 
     users, logout, branches, categories, addCategory, deleteCategory, updateUser,
-    expenses, addExpense, updateExpense, updateTransaction, processRefund
+    expenses, addExpense, updateExpense, updateTransaction, processRefund, expenseCategories
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'reports' | 'debts' | 'expenses' | 'settings' | 'profile' | 'returns'>('dashboard');
@@ -50,6 +50,7 @@ export const Admin = () => {
   // Expense State
   const [newExpenseAmount, setNewExpenseAmount] = useState('');
   const [newExpenseReason, setNewExpenseReason] = useState('');
+  const [newExpenseCategory, setNewExpenseCategory] = useState('');
 
   // Return State
   const [returnInvoiceId, setReturnInvoiceId] = useState('');
@@ -125,10 +126,13 @@ export const Admin = () => {
   const handleCreateExpense = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    const cat = expenseCategories.find(c => c.id === newExpenseCategory);
     const expense: Expense = {
         id: nanoid(),
         amount: parseFloat(newExpenseAmount),
         description: newExpenseReason,
+        categoryId: cat?.id,
+        categoryName: cat?.name,
         status: ExpenseStatus.APPROVED,
         requestedBy: user.id,
         requestedByName: user.name,
@@ -139,6 +143,7 @@ export const Admin = () => {
     addExpense(expense);
     setNewExpenseAmount('');
     setNewExpenseReason('');
+    setNewExpenseCategory('');
   };
 
   const handleReviewExpense = (exp: Expense, status: ExpenseStatus) => {
@@ -146,6 +151,8 @@ export const Admin = () => {
   };
 
   const handlePrintReceipt = (tx: Transaction) => {
+      // (Receipt Logic same as Cashier - omitted for brevity but included in output if file fully replaced)
+      // I will include the full function to ensure it works.
       const paymentRows = tx.paymentMethod === PaymentMethod.SPLIT 
         ? tx.payments.map(p => 
             `<tr><td>${p.method}</td><td class="right">${settings.currency}${p.amount.toFixed(2)}</td></tr>`
@@ -393,6 +400,7 @@ export const Admin = () => {
   };
 
   const handlePrintReport = () => {
+    // Report printing logic same as before
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -521,7 +529,7 @@ export const Admin = () => {
 
   return (
     <div className="min-h-screen flex bg-gray-900 font-sans text-gray-100">
-      {/* Sidebar */}
+      {/* Sidebar - Same as before */}
       <div className={`bg-gray-800 text-white flex flex-col fixed h-full z-20 transition-all duration-300 border-r border-gray-700 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
         <div className="p-4 border-b border-gray-700 flex items-center justify-between">
           {!isSidebarCollapsed && <h1 className="text-xl font-bold flex items-center gap-2 truncate text-white"><Icons.POS className="text-blue-500" /> AlkanchiPay</h1>}
@@ -535,7 +543,7 @@ export const Admin = () => {
         <div className="p-4 border-t border-gray-700"><button onClick={logout} className="flex items-center gap-2 text-gray-400 hover:text-white transition w-full px-2 py-2 rounded hover:bg-gray-700"><Icons.Logout size={18} />{!isSidebarCollapsed && "Sign Out"}</button></div>
       </div>
 
-      {/* Main */}
+      {/* Main Content */}
       <div className={`flex-1 overflow-auto transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
         <header className="bg-gray-800 shadow-sm p-6 flex flex-col md:flex-row justify-between items-center sticky top-0 z-10 border-b border-gray-700">
           <div><h2 className="text-2xl font-extrabold text-white capitalize">{activeTab}</h2><p className="text-sm text-gray-400 font-medium">{currentBranch?.name}</p></div>
@@ -570,16 +578,48 @@ export const Admin = () => {
                   <div className="lg:col-span-2 bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
                       <h3 className="font-bold text-lg text-white mb-4">Expense History & Approvals</h3>
                       <table className="w-full text-left text-sm">
-                          <thead className="bg-gray-900 text-white font-bold border-b border-gray-700"><tr><th className="p-3">Date</th><th className="p-3">Reason</th><th className="p-3">Amount</th><th className="p-3">User</th><th className="p-3">Status</th><th className="p-3 text-right">Action</th></tr></thead>
+                          <thead className="bg-gray-900 text-white font-bold border-b border-gray-700"><tr><th className="p-3">Date</th><th className="p-3">Category</th><th className="p-3">Reason</th><th className="p-3">Amount</th><th className="p-3">User</th><th className="p-3">Status</th><th className="p-3 text-right">Action</th></tr></thead>
                           <tbody className="divide-y divide-gray-700">{branchExpenses.map(exp => (
-                                  <tr key={exp.id} className="hover:bg-gray-700/50"><td className="p-3 text-gray-400 font-medium">{new Date(exp.date).toLocaleDateString()}</td><td className="p-3 text-white font-bold">{exp.description}</td><td className="p-3 font-bold text-white">{settings.currency}{exp.amount.toFixed(2)}</td><td className="p-3 text-gray-300">{exp.requestedByName}</td><td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${exp.status === 'APPROVED' ? 'bg-green-900/50 text-green-400' : exp.status === 'REJECTED' ? 'bg-red-900/50 text-red-400' : 'bg-orange-900/50 text-orange-400'}`}>{exp.status}</span></td><td className="p-3 text-right">{exp.status === 'PENDING' && (<div className="flex justify-end gap-2"><button onClick={() => handleReviewExpense(exp, ExpenseStatus.APPROVED)} className="text-green-500 hover:text-green-400" title="Approve"><Icons.CheckSquare size={18}/></button><button onClick={() => handleReviewExpense(exp, ExpenseStatus.REJECTED)} className="text-red-500 hover:text-red-400" title="Reject"><Icons.XSquare size={18}/></button></div>)}</td></tr>
+                                  <tr key={exp.id} className="hover:bg-gray-700/50">
+                                      <td className="p-3 text-gray-400 font-medium">{new Date(exp.date).toLocaleDateString()}</td>
+                                      <td className="p-3 text-gray-300 font-bold">{exp.categoryName || '-'}</td>
+                                      <td className="p-3 text-white font-bold">{exp.description}</td>
+                                      <td className="p-3 font-bold text-white">{settings.currency}{exp.amount.toFixed(2)}</td>
+                                      <td className="p-3 text-gray-300">{exp.requestedByName}</td>
+                                      <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${exp.status === 'APPROVED' ? 'bg-green-900/50 text-green-400' : exp.status === 'REJECTED' ? 'bg-red-900/50 text-red-400' : 'bg-orange-900/50 text-orange-400'}`}>{exp.status}</span></td><td className="p-3 text-right">{exp.status === 'PENDING' && (<div className="flex justify-end gap-2"><button onClick={() => handleReviewExpense(exp, ExpenseStatus.APPROVED)} className="text-green-500 hover:text-green-400" title="Approve"><Icons.CheckSquare size={18}/></button><button onClick={() => handleReviewExpense(exp, ExpenseStatus.REJECTED)} className="text-red-500 hover:text-red-400" title="Reject"><Icons.XSquare size={18}/></button></div>)}</td>
+                                  </tr>
                               ))}</tbody>
                       </table>
                   </div>
-                  <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6 h-fit"><h3 className="font-bold text-lg text-white mb-4">Record Store Expense</h3><form onSubmit={handleCreateExpense} className="space-y-4"><div><label className="block text-sm font-bold text-gray-400 mb-1">Amount</label><input type="number" required className="w-full p-2 border border-gray-600 bg-gray-900 text-white rounded focus:ring-2 focus:ring-blue-500" value={newExpenseAmount} onChange={e => setNewExpenseAmount(e.target.value)} /></div><div><label className="block text-sm font-bold text-gray-400 mb-1">Reason</label><textarea required className="w-full p-2 border border-gray-600 bg-gray-900 text-white rounded focus:ring-2 focus:ring-blue-500" rows={3} value={newExpenseReason} onChange={e => setNewExpenseReason(e.target.value)}></textarea></div><button type="submit" className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700">Submit Approved Expense</button></form></div>
+                  <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6 h-fit">
+                      <h3 className="font-bold text-lg text-white mb-4">Record Store Expense</h3>
+                      <form onSubmit={handleCreateExpense} className="space-y-4">
+                          <div>
+                              <label className="block text-sm font-bold text-gray-400 mb-1">Amount</label>
+                              <input type="number" required className="w-full p-2 border border-gray-600 bg-gray-900 text-white rounded focus:ring-2 focus:ring-blue-500" value={newExpenseAmount} onChange={e => setNewExpenseAmount(e.target.value)} />
+                          </div>
+                          <div>
+                              <label className="block text-sm font-bold text-gray-400 mb-1">Category</label>
+                              <select className="w-full p-2 border border-gray-600 bg-gray-900 text-white rounded" value={newExpenseCategory} onChange={e => setNewExpenseCategory(e.target.value)} required>
+                                  <option value="">Select Category</option>
+                                  {expenseCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-sm font-bold text-gray-400 mb-1">Reason</label>
+                              <textarea required className="w-full p-2 border border-gray-600 bg-gray-900 text-white rounded focus:ring-2 focus:ring-blue-500" rows={3} value={newExpenseReason} onChange={e => setNewExpenseReason(e.target.value)}></textarea>
+                          </div>
+                          <button type="submit" className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700">Submit Approved Expense</button>
+                      </form>
+                  </div>
               </div>
           )}
 
+          {/* ... Rest of tabs (reports, inventory, returns, debts, settings, profile) remain unchanged ... */}
+          {/* I will omit them for brevity but they are implicitly part of the full file restoration if I were replacing the whole file. 
+             Since I am doing partial updates where possible, I will assume the previous 'Admin.tsx' content for these tabs is still valid, 
+             but for safety I will include the full render logic below to ensure nothing is lost. */}
+          
           {activeTab === 'reports' && (
               <div className="space-y-6">
                   <div className="flex flex-col xl:flex-row gap-4 justify-between items-center bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-700">
@@ -619,7 +659,7 @@ export const Admin = () => {
                   </div>
               </div>
           )}
-
+          
           {activeTab === 'inventory' && (
               <div className="flex gap-6 h-full">
                   <div className={`${showCategorySidebar ? 'w-64' : 'w-0 hidden'} bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-4 transition-all duration-300`}>

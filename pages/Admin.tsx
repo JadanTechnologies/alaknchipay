@@ -492,7 +492,7 @@ export const Admin = () => {
                <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
                    <div className="p-4 border-b border-gray-700"><h3 className="font-bold text-white">Recent Sales</h3></div>
                    <table className="w-full text-left text-sm text-gray-300">
-                       <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase"><tr><th className="p-3">Time</th><th className="p-3">Cashier</th><th className="p-3">Items</th><th className="p-3">Method</th><th className="p-3">Total</th><th className="p-3">Action</th></tr></thead>
+                       <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold"><tr><th className="p-3">Time</th><th className="p-3">Cashier</th><th className="p-3">Items</th><th className="p-3">Method</th><th className="p-3">Total</th><th className="p-3">Action</th></tr></thead>
                        <tbody className="divide-y divide-gray-700">
                            {recentSales.map(t => (
                                <tr key={t.id} className="hover:bg-gray-700/50">

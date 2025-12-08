@@ -35,6 +35,7 @@ export const Icons = {
   Help: HelpCircle,
   Printer: Printer,
   Check: CheckCircle,
+  CheckCircle: CheckCircle,
   Download: Download,
   Store: Store,
   Filter: Filter,

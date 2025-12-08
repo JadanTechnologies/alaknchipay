@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Product, Transaction, StoreSettings, Role, RefundItem, RefundLog, TransactionStatus, Branch, Notification, NotificationType, Category, PaymentMethod, ActivityLog, Expense, ExpenseStatus, ExpenseCategory } from '../types';
 import { storage } from '../services/storage';
 import { nanoid } from 'nanoid';
@@ -102,19 +102,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setActivityLogs(prev => [log, ...prev]);
   };
 
-  // Notification Logic
-  const addNotification = (message: string, type: NotificationType) => {
+  // Notification Logic (Wrapped in useCallback to prevent infinite loops in consumers)
+  const removeNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  const addNotification = useCallback((message: string, type: NotificationType) => {
     const id = nanoid();
     setNotifications(prev => [...prev, { id, message, type }]);
     const duration = (type === 'warning' || type === 'error') ? 6000 : 3000;
     setTimeout(() => {
       removeNotification(id);
     }, duration);
-  };
-
-  const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
+  }, [removeNotification]);
 
   const login = (username: string) => {
     const foundUser = users.find(u => u.username === username && u.active);

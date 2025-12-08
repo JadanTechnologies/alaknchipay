@@ -14,13 +14,29 @@ export const Login = () => {
     setLoading(true);
     setError('');
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      setError(error.message);
+    if (authError) {
+      setError(authError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (authData.user) {
+      // Check if profile exists
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (!profile) {
+        setError('Login successful, but user profile not found. Please contact support to create your profile.');
+        await supabase.auth.signOut(); // Force sign out if no profile
+      }
     }
     setLoading(false);
   };

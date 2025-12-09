@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Icons } from '../components/ui/Icons';
-import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus, ExpenseCategory } from '../types';
+import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus, ExpenseCategory, UserRole, Permission } from '../types';
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
 import { jsPDF } from 'jspdf';
@@ -18,7 +18,8 @@ export const SuperAdmin = () => {
         categories, addCategory, deleteCategory, user,
         activityLogs, expenses, updateExpense, deleteExpense,
         expenseCategories, addExpenseCategory, deleteExpenseCategory,
-        createBackup, restoreBackup, addNotification
+        createBackup, restoreBackup, addNotification,
+        roles, permissions, addRole, updateRole, deleteRole // New
     } = useStore();
 
     // Modal States
@@ -36,6 +37,10 @@ export const SuperAdmin = () => {
     const [expenseSubTab, setExpenseSubTab] = useState<'requests' | 'categories' | 'summary'>('requests');
     const [newExpCatName, setNewExpCatName] = useState('');
     const [newExpCatDesc, setNewExpCatDesc] = useState('');
+
+    // Roles Modal
+    const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+    const [editingRole, setEditingRole] = useState<UserRole | null>(null);
 
     // Branch Inventory Details Modal
     const [selectedBranchForDetails, setSelectedBranchForDetails] = useState<Branch | null>(null);
@@ -238,7 +243,7 @@ export const SuperAdmin = () => {
             name: formData.get('name') as string,
             username: formData.get('username') as string,
             password: formData.get('password') as string,
-            role: formData.get('role') as Role,
+            role: formData.get('role') as string, // Changed from Role enum to string
             active: formData.get('status') === 'active',
             storeId: formData.get('storeId') as string,
             expenseLimit: parseFloat(formData.get('expenseLimit') as string) || 0
@@ -253,8 +258,8 @@ export const SuperAdmin = () => {
             id: editingBranch ? editingBranch.id : nanoid(),
             name: formData.get('name') as string,
             address: formData.get('address') as string,
-            phone: formData.get('phone') as string,
-            managerId: formData.get('managerId') as string
+            phone: formData.get('phone') as string
+            // managerId removed as per requirement
         };
         if (editingBranch) updateBranch(branchData); else addBranch(branchData);
         setIsBranchModalOpen(false); setEditingBranch(null);
@@ -303,10 +308,30 @@ export const SuperAdmin = () => {
     // For now, let's list ALL users so they can be assigned. 
 
     // Permissions Data (Static for now)
-    const rolePermissions = {
-        [Role.SUPER_ADMIN]: ['Full Access', 'Create Branches', 'Manage Users', 'View Global Financials', 'System Settings'],
-        [Role.ADMIN]: ['Manage Assigned Branch', 'View Branch Financials', 'Manage Branch Stock', 'Manage Branch Cashiers'],
-        [Role.CASHIER]: ['Process Transactions', 'View Own History', 'Close Register']
+    // Permissions Data - Now dynamic from store
+    // const rolePermissions = ... (Derived from roles state in UI)
+
+    const handleSaveRole = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const selectedPerms = permissions.filter(p => formData.get(`perm_${p.id}`) === 'on').map(p => p.name);
+
+        const roleData: UserRole = {
+            id: editingRole ? editingRole.id : nanoid(),
+            name: formData.get('name') as string,
+            description: formData.get('description') as string,
+            isSystemDefined: false,
+            permissions: selectedPerms
+        };
+
+        if (editingRole) updateRole(roleData); else addRole(roleData);
+        setIsRoleModalOpen(false); setEditingRole(null);
+    };
+
+    const handleDeleteRole = (id: string) => {
+        if (confirm('Are you sure you want to delete this role? Users assigned to this role may lose access.')) {
+            deleteRole(id);
+        }
     };
 
     return (
@@ -503,7 +528,7 @@ export const SuperAdmin = () => {
                                         <tr key={b.id} className="hover:bg-gray-700/50 cursor-pointer" onClick={() => setSelectedBranchForDetails(b)}>
                                             <td className="p-4 font-bold text-white">{b.name}</td>
                                             <td className="p-4 text-gray-400">{b.address}</td>
-                                            <td className="p-4 text-blue-400">{users.find(u => u.id === b.managerId)?.name || 'Unassigned'}</td>
+                                            <td className="p-4 text-blue-400">{/* Manager removed */} - </td>
                                             <td className="p-4 text-white">
                                                 <div className="text-xs">Cost: {settings.currency}{metrics.totalCost.toFixed(2)}</div>
                                                 <div className="text-xs text-green-400">Sales: {settings.currency}{metrics.totalSales.toFixed(2)}</div>
@@ -752,17 +777,29 @@ export const SuperAdmin = () => {
 
                 {activeTab === 'roles' && (
                     <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden p-6">
-                        <h2 className="text-xl font-bold text-white mb-6">Roles & Permissions Management</h2>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-white">Roles & Permissions Management</h2>
+                            <button onClick={() => { setEditingRole(null); setIsRoleModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> Create Role</button>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {Object.entries(Role).map(([key, role]) => (
-                                <div key={key} className="bg-gray-900 border border-gray-600 rounded-xl p-6">
+                            {roles.map((role) => (
+                                <div key={role.id} className="bg-gray-900 border border-gray-600 rounded-xl p-6 relative group">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-bold text-white">{role === Role.ADMIN ? 'BRANCH MANAGER' : role.replace('_', ' ')}</h3>
-                                        <span className="bg-gray-700 text-xs px-2 py-1 rounded text-gray-300">{users.filter(u => u.role === role).length} Users</span>
+                                        <h3 className="text-lg font-bold text-white">{role.name.replace(/_/g, ' ')}</h3>
+                                        <div className="flex gap-2">
+                                            <span className="bg-gray-700 text-xs px-2 py-1 rounded text-gray-300">{users.filter(u => u.role === role.name).length} Users</span>
+                                            {!role.isSystemDefined && (
+                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                                    <button onClick={() => { setEditingRole(role); setIsRoleModalOpen(true); }} className="p-1 text-blue-400 hover:bg-gray-800 rounded"><Icons.Settings size={14} /></button>
+                                                    <button onClick={() => handleDeleteRole(role.id)} className="p-1 text-red-400 hover:bg-gray-800 rounded"><Icons.Delete size={14} /></button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+                                    <p className="text-xs text-gray-500 mb-3 italic">{role.description || 'No description'}</p>
                                     <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">Capabilities</h4>
-                                    <ul className="space-y-2">
-                                        {rolePermissions[role as Role].map((perm: string) => (
+                                    <ul className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                        {role.permissions.map((perm: string) => (
                                             <li key={perm} className="flex items-center gap-2 text-sm text-gray-300">
                                                 <Icons.Check size={14} className="text-green-500" /> {perm}
                                             </li>
@@ -770,10 +807,6 @@ export const SuperAdmin = () => {
                                     </ul>
                                 </div>
                             ))}
-                        </div>
-                        <div className="mt-8 p-4 bg-blue-900/20 border border-blue-800 rounded-lg">
-                            <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2"><Icons.Info size={16} /> Note</h4>
-                            <p className="text-sm text-gray-300">Roles are currently system-defined. Custom roles will be available in a future update. To change a user's role, edit them in the "Users" tab.</p>
                         </div>
                     </div>
                 )}
@@ -808,7 +841,11 @@ export const SuperAdmin = () => {
                                 <input name="username" defaultValue={editingUser?.username} placeholder="Username" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                                 {!editingUser && <input name="password" type="password" placeholder="Password" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />}
                                 <div className="grid grid-cols-2 gap-2">
-                                    <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value={Role.ADMIN}>Branch Manager</option><option value={Role.CASHIER}>Cashier</option></select>
+                                    <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded">
+                                        {roles.map(r => (
+                                            <option key={r.id} value={r.name}>{r.name.replace(/_/g, ' ')}</option>
+                                        ))}
+                                    </select>
                                     <select name="storeId" defaultValue={editingUser?.storeId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="">No Branch (Global)</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
                                 </div>
                                 <div><label className="block text-xs font-bold text-gray-400 mb-1">Expense Limit ({settings.currency})</label><input type="number" name="expenseLimit" defaultValue={editingUser?.expenseLimit} placeholder="0.00" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" /></div>
@@ -828,7 +865,7 @@ export const SuperAdmin = () => {
                                 <input name="name" defaultValue={editingBranch?.name} placeholder="Branch Name" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                                 <input name="address" defaultValue={editingBranch?.address} placeholder="Address" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                                 <input name="phone" defaultValue={editingBranch?.phone} placeholder="Phone" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" />
-                                <div><label className="block text-xs font-bold text-gray-400 mb-1">Branch Manager</label><select name="managerId" defaultValue={editingBranch?.managerId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="">Select Manager</option>{potentialManagers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.username})</option>)}</select></div>
+                                {/* Manager field removed */}
                                 <div className="flex gap-2"><button type="button" onClick={() => setIsBranchModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save</button></div>
                             </form>
                         </div>
@@ -888,3 +925,5 @@ export const SuperAdmin = () => {
         </div>
     );
 };
+
+export default SuperAdmin;

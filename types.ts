@@ -1,9 +1,34 @@
 
-export enum Role {
+// Role is now a string to support dynamic roles, but we keep the enum values as constants/defaults
+export enum RoleType { // Renamed to avoid conflict if we use 'Role' as interface
   SUPER_ADMIN = 'SUPER_ADMIN',
-  ADMIN = 'ADMIN',
+  ADMIN = 'BRANCH_MANAGER', // Renamed from ADMIN to align with new system
   CASHIER = 'CASHIER'
 }
+
+// Deprecate Role enum usage in favor of string, but keep for backward compat in some places temporarily
+export const Role = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  ADMIN: 'ADMIN', // Keeping 'ADMIN' string for existing data compatibility until migrated
+  BRANCH_MANAGER: 'BRANCH_MANAGER',
+  CASHIER: 'CASHIER'
+};
+
+export interface Permission {
+  id: string;
+  name: string;
+  description: string;
+  module: string;
+}
+
+export interface UserRole {
+  id: string;
+  name: string;
+  description?: string;
+  isSystemDefined: boolean;
+  permissions: string[]; // List of permission names
+}
+
 
 export enum PaymentMethod {
   CASH = 'CASH',
@@ -47,7 +72,7 @@ export interface AccessRules {
 export interface User {
   id: string;
   name: string;
-  role: Role;
+  role: string; // Changed from enum to string for dynamic roles
   username: string;
   password?: string; // In a real app, this would be hashed
   active: boolean;
@@ -59,7 +84,7 @@ export interface User {
 export interface Category {
   id: string;
   name: string;
-  storeId?: string; 
+  storeId?: string;
 }
 
 export interface ExpenseCategory {

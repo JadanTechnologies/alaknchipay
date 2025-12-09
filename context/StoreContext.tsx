@@ -162,6 +162,52 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Branch CRUD Operations
+  const addBranch = async (branch: Branch) => {
+    const { data, error } = await supabase.from('branches').insert({
+      id: branch.id,
+      name: branch.name,
+      address: branch.address,
+      phone: branch.phone,
+      manager_id: branch.managerId || null
+    }).select().single();
+
+    if (!error && data) {
+      setBranches(prev => [...prev, data]);
+      addNotification(`Branch "${branch.name}" created successfully`, 'success');
+    } else {
+      addNotification(`Failed to create branch: ${error?.message || 'Unknown error'}`, 'error');
+    }
+  };
+
+  const updateBranch = async (branch: Branch) => {
+    const { data, error } = await supabase.from('branches').update({
+      name: branch.name,
+      address: branch.address,
+      phone: branch.phone,
+      manager_id: branch.managerId || null
+    }).eq('id', branch.id).select().single();
+
+    if (!error && data) {
+      setBranches(prev => prev.map(b => b.id === branch.id ? data : b));
+      addNotification(`Branch "${branch.name}" updated successfully`, 'success');
+    } else {
+      addNotification(`Failed to update branch: ${error?.message || 'Unknown error'}`, 'error');
+    }
+  };
+
+  const deleteBranch = async (id: string) => {
+    const branchName = branches.find(b => b.id === id)?.name || 'Unknown';
+    const { error } = await supabase.from('branches').delete().eq('id', id);
+
+    if (!error) {
+      setBranches(prev => prev.filter(b => b.id !== id));
+      addNotification(`Branch "${branchName}" deleted successfully`, 'success');
+    } else {
+      addNotification(`Failed to delete branch: ${error?.message || 'Unknown error'}`, 'error');
+    }
+  };
+
   // Notification Logic (same as before)
   const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -197,17 +243,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
     if (!error && data) {
       setProducts(prev => [...prev, mapProduct(data)]);
-      addNotification('Product added', 'success');
+      addNotification(`Product "${p.name}" added successfully`, 'success');
+    } else {
+      addNotification(`Failed to add product: ${error?.message || 'Unknown error'}`, 'error');
     }
   };
 
   const updateProduct = async (p: Product) => {
-    // Implementation needed
+    const dbProduct = {
+      name: p.name, sku: p.sku, category_id: p.category,
+      cost_price: p.costPrice, selling_price: p.sellingPrice,
+      stock: p.stock, min_stock_alert: p.minStockAlert, store_id: p.storeId
+    };
+    const { data, error } = await supabase.from('products').update(dbProduct).eq('id', p.id).select().single();
+    if (!error && data) {
+      setProducts(prev => prev.map(prod => prod.id === p.id ? mapProduct(data) : prod));
+      addNotification(`Product "${p.name}" updated successfully`, 'success');
+    } else {
+      addNotification(`Failed to update product: ${error?.message || 'Unknown error'}`, 'error');
+    }
   };
 
   const deleteProduct = async (id: string) => {
-    await supabase.from('products').delete().eq('id', id);
-    setProducts(prev => prev.filter(p => p.id !== id));
+    const productName = products.find(p => p.id === id)?.name || 'Unknown';
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (!error) {
+      setProducts(prev => prev.filter(p => p.id !== id));
+      addNotification(`Product "${productName}" deleted successfully`, 'success');
+    } else {
+      addNotification(`Failed to delete product: ${error?.message || 'Unknown error'}`, 'error');
+    }
   };
 
   // ... (Other functions need to be similarly refactored to async/Supabase)
@@ -234,20 +299,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         // Update local state with real ID
         setRoles(prev => prev.map(r => r.name === role.name ? { ...r, id: data.id } : r));
+        addNotification(`Role "${role.name}" created successfully`, 'success');
+      } else {
+        addNotification(`Failed to create role: ${error?.message || 'Unknown error'}`, 'error');
       }
-    } catch (e) { console.error("Error adding role", e); }
+    } catch (e) {
+      console.error("Error adding role", e);
+      addNotification('Failed to create role', 'error');
+    }
 
     // logActivity('ROLE_CREATED', `Created role ${role.name}`); // Activity log not yet implemented fully in context
   };
 
   const updateRole = async (role: UserRole) => {
-    setRoles(prev => prev.map(r => r.id === role.id ? role : r));
-    // Implementation for DB update omitted for brevity, assuming similar pattern
+    try {
+      const { error } = await supabase.from('roles').update({
+        name: role.name,
+        description: role.description
+      }).eq('id', role.id);
+
+      if (!error) {
+        setRoles(prev => prev.map(r => r.id === role.id ? role : r));
+        addNotification(`Role "${role.name}" updated successfully`, 'success');
+      } else {
+        addNotification(`Failed to update role: ${error?.message || 'Unknown error'}`, 'error');
+      }
+    } catch (e) {
+      console.error("Error updating role", e);
+      addNotification('Failed to update role', 'error');
+    }
   };
 
   const deleteRole = async (id: string) => {
-    setRoles(prev => prev.filter(r => r.id !== id));
-    await supabase.from('roles').delete().eq('id', id);
+    const roleName = roles.find(r => r.id === id)?.name || 'Unknown';
+    const { error } = await supabase.from('roles').delete().eq('id', id);
+    if (!error) {
+      setRoles(prev => prev.filter(r => r.id !== id));
+      addNotification(`Role "${roleName}" deleted successfully`, 'success');
+    } else {
+      addNotification(`Failed to delete role: ${error?.message || 'Unknown error'}`, 'error');
+    }
   };
 
   return (
@@ -269,9 +360,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addRole, updateRole, deleteRole,
       updateSettings: (s) => { },
       processRefund: (id, items, reason) => { },
-      addBranch: (b) => { },
-      updateBranch: (b) => { },
-      deleteBranch: (id) => { },
+      addBranch,
+      updateBranch,
+      deleteBranch,
       addNotification, removeNotification,
       addExpense: (e) => { },
       updateExpense: (e) => { },

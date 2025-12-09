@@ -260,17 +260,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateUser = async (user: Partial<User>) => {
-    console.log('[StoreContext] updateUser called:', user);
-    const { data, error } = await supabase.from('profiles').update({
+    console.log('[StoreContext] updateUser called with full user object:', user);
+    console.log('[StoreContext] Branch/Store ID being sent:', user.storeId);
+
+    const updateData = {
       username: user.username,
       name: user.name,
       role: user.role,
       active: user.active,
       store_id: user.storeId || null,
       expense_limit: user.expenseLimit || 0
-    }).eq('id', user.id!).select().single();
+    };
+
+    console.log('[StoreContext] Actual update data being sent to Supabase:', updateData);
+
+    const { data, error } = await supabase.from('profiles').update(updateData).eq('id', user.id!).select().single();
 
     console.log('[StoreContext] updateUser response:', { data, error });
+    console.log('[StoreContext] Updated store_id in response:', data?.store_id);
 
     if (!error && data) {
       setUsers(prev => prev.map(u => u.id === user.id ? data : u));

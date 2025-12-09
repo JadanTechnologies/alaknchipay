@@ -87,6 +87,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
     if (profile) setUser(profile);
 
+    // Fetch All Users (for Super Admin/Admin to manage)
+    const { data: allUsers } = await supabase.from('profiles').select('*');
+    if (allUsers) setUsers(allUsers);
+
     // Fetch Roles & Permissions
     const { data: rolesData } = await supabase.from('roles').select('*');
     const { data: permsData } = await supabase.from('permissions').select('*');

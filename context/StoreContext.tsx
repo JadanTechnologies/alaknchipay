@@ -256,6 +256,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateUser = async (user: Partial<User>) => {
+    console.log('[StoreContext] updateUser called:', user);
     const { data, error } = await supabase.from('profiles').update({
       username: user.username,
       name: user.name,
@@ -264,6 +265,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       store_id: user.storeId || null,
       expense_limit: user.expenseLimit || 0
     }).eq('id', user.id!).select().single();
+
+    console.log('[StoreContext] updateUser response:', { data, error });
 
     if (!error && data) {
       setUsers(prev => prev.map(u => u.id === user.id ? data : u));
@@ -274,8 +277,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteUser = async (id: string) => {
+    console.log('[StoreContext] deleteUser called:', id);
     const userName = users.find(u => u.id === id)?.name || 'Unknown';
     const { error } = await supabase.from('profiles').delete().eq('id', id);
+
+    console.log('[StoreContext] deleteUser response:', { error });
 
     if (!error) {
       setUsers(prev => prev.filter(u => u.id !== id));
@@ -364,13 +370,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateProduct = async (p: Product) => {
+  const updateProduct = async (p: Partial<Product>) => {
+    console.log('[StoreContext] updateProduct called:', p);
+
+    // Find category UUID by name if category is a string
+    let categoryId = null;
+    if (p.category) {
+      const { data: cat } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', p.category)
+        .single();
+      categoryId = cat?.id || null;
+      console.log('[StoreContext] Category lookup for update:', { name: p.category, id: categoryId });
+    }
+
     const dbProduct = {
-      name: p.name, sku: p.sku, category_id: p.category,
-      cost_price: p.costPrice, selling_price: p.sellingPrice,
-      stock: p.stock, min_stock_alert: p.minStockAlert, store_id: p.storeId
+      name: p.name,
+      sku: p.sku,
+      category_id: categoryId,
+      cost_price: p.costPrice,
+      selling_price: p.sellingPrice,
+      stock: p.stock,
+      min_stock_alert: p.minStockAlert,
+      store_id: p.storeId
     };
-    const { data, error } = await supabase.from('products').update(dbProduct).eq('id', p.id).select().single();
+
+    const { data, error } = await supabase.from('products').update(dbProduct).eq('id', p.id!).select().single();
+    console.log('[StoreContext] updateProduct response:', { data, error });
+
     if (!error && data) {
       setProducts(prev => prev.map(prod => prod.id === p.id ? mapProduct(data) : prod));
       addNotification(`Product "${p.name}" updated successfully`, 'success');
@@ -380,8 +408,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteProduct = async (id: string) => {
+    console.log('[StoreContext] deleteProduct called:', id);
     const productName = products.find(p => p.id === id)?.name || 'Unknown';
     const { error } = await supabase.from('products').delete().eq('id', id);
+
+    console.log('[StoreContext] deleteProduct response:', { error });
+
     if (!error) {
       setProducts(prev => prev.filter(p => p.id !== id));
       addNotification(`Product "${productName}" deleted successfully`, 'success');

@@ -215,34 +215,43 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // User CRUD Operations
   const addUser = async (user: Partial<User>) => {
-    // First create auth user
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    console.log('[StoreContext] addUser called:', user);
+
+    // Use signUp instead of admin.createUser (works in browser)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: user.username!,
       password: user.password!,
-      email_confirm: true
+      options: {
+        data: {
+          name: user.name,
+          role: user.role
+        }
+      }
     });
+
+    console.log('[StoreContext] signUp response:', { authData, authError });
 
     if (authError || !authData.user) {
       addNotification(`Failed to create user: ${authError?.message || 'Unknown error'}`, 'error');
       return;
     }
 
-    // Then create profile
-    const { data, error } = await supabase.from('profiles').insert({
-      id: authData.user.id,
-      username: user.username,
+    // Profile is auto-created by trigger, just update it with additional fields
+    const { data, error } = await supabase.from('profiles').update({
       name: user.name,
       role: user.role,
       active: user.active ?? true,
       store_id: user.storeId || null,
       expense_limit: user.expenseLimit || 0
-    }).select().single();
+    }).eq('id', authData.user.id).select().single();
+
+    console.log('[StoreContext] profile update response:', { data, error });
 
     if (!error && data) {
       setUsers(prev => [...prev, data]);
       addNotification(`User "${user.name}" created successfully`, 'success');
     } else {
-      addNotification(`Failed to create user profile: ${error?.message || 'Unknown error'}`, 'error');
+      addNotification(`Failed to update user profile: ${error?.message || 'Unknown error'}`, 'error');
     }
   };
 
@@ -318,13 +327,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Simplified stubs for other actions to keep the file compiling 
   // You should expand these one by one
-  const addProduct = async (p: Product) => {
+  const addProduct = async (p: Partial<Product>) => {
+    console.log('[StoreContext] addProduct called:', p);
+
+    // Find category UUID by name if category is a string
+    let categoryId = null;
+    if (p.category) {
+      const { data: cat } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', p.category)
+        .single();
+      categoryId = cat?.id || null;
+      console.log('[StoreContext] Category lookup:', { name: p.category, id: categoryId });
+    }
+
     const dbProduct = {
-      name: p.name, sku: p.sku, category_id: p.category,
-      cost_price: p.costPrice, selling_price: p.sellingPrice,
-      stock: p.stock, min_stock_alert: p.minStockAlert, store_id: p.storeId
+      name: p.name,
+      sku: p.sku,
+      category_id: categoryId,
+      cost_price: p.costPrice,
+      selling_price: p.sellingPrice,
+      stock: p.stock,
+      min_stock_alert: p.minStockAlert,
+      store_id: p.storeId
     };
+
     const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
+    console.log('[StoreContext] addProduct response:', { data, error });
+
     if (!error && data) {
       setProducts(prev => [...prev, mapProduct(data)]);
       addNotification(`Product "${p.name}" added successfully`, 'success');

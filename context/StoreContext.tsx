@@ -165,7 +165,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Branch CRUD Operations
   const addBranch = async (branch: Branch) => {
     const { data, error } = await supabase.from('branches').insert({
-      id: branch.id,
       name: branch.name,
       address: branch.address,
       phone: branch.phone,

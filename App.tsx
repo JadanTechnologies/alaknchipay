@@ -22,7 +22,7 @@ const AppContent = () => {
   return (
     <>
       {user.role === Role.SUPER_ADMIN && <SuperAdmin />}
-      {user.role === Role.ADMIN && <Admin />}
+      {(user.role === Role.ADMIN || user.role === 'BRANCH_MANAGER') && <Admin />}
       {user.role === Role.CASHIER && <Cashier />}
       <ToastContainer />
     </>

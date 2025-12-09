@@ -40,8 +40,8 @@ interface StoreContextType {
   deleteTransaction: (id: string) => void;
   updateSettings: (settings: StoreSettings) => void;
   processRefund: (transactionId: string, items: RefundItem[], reason: string, condition?: string) => void;
-  addBranch: (branch: Branch) => void;
-  updateBranch: (branch: Branch) => void;
+  addBranch: (branch: Partial<Branch>) => void;
+  updateBranch: (branch: Partial<Branch>) => void;
   deleteBranch: (id: string) => void;
   addNotification: (message: string, type: NotificationType) => void;
   removeNotification: (id: string) => void;
@@ -163,13 +163,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Branch CRUD Operations
-  const addBranch = async (branch: Branch) => {
+  const addBranch = async (branch: Partial<Branch>) => {
+    console.log('[StoreContext] addBranch called with:', branch);
     const { data, error } = await supabase.from('branches').insert({
       name: branch.name,
       address: branch.address,
       phone: branch.phone,
       manager_id: branch.managerId || null
     }).select().single();
+
+    console.log('[StoreContext] addBranch response:', { data, error });
 
     if (!error && data) {
       setBranches(prev => [...prev, data]);
@@ -179,13 +182,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateBranch = async (branch: Branch) => {
+  const updateBranch = async (branch: Partial<Branch>) => {
+    console.log('[StoreContext] updateBranch called with:', branch);
     const { data, error } = await supabase.from('branches').update({
       name: branch.name,
       address: branch.address,
       phone: branch.phone,
       manager_id: branch.managerId || null
-    }).eq('id', branch.id).select().single();
+    }).eq('id', branch.id!).select().single();
+
+    console.log('[StoreContext] updateBranch response:', { data, error });
 
     if (!error && data) {
       setBranches(prev => prev.map(b => b.id === branch.id ? data : b));

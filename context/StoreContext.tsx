@@ -207,6 +207,85 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // User CRUD Operations
+  const addUser = async (user: Partial<User>) => {
+    // First create auth user
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: user.username!,
+      password: user.password!,
+      email_confirm: true
+    });
+
+    if (authError || !authData.user) {
+      addNotification(`Failed to create user: ${authError?.message || 'Unknown error'}`, 'error');
+      return;
+    }
+
+    // Then create profile
+    const { data, error } = await supabase.from('profiles').insert({
+      id: authData.user.id,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      active: user.active ?? true,
+      store_id: user.storeId || null,
+      expense_limit: user.expenseLimit || 0
+    }).select().single();
+
+    if (!error && data) {
+      setUsers(prev => [...prev, data]);
+      addNotification(`User "${user.name}" created successfully`, 'success');
+    } else {
+      addNotification(`Failed to create user profile: ${error?.message || 'Unknown error'}`, 'error');
+    }
+  };
+
+  const updateUser = async (user: Partial<User>) => {
+    const { data, error } = await supabase.from('profiles').update({
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      active: user.active,
+      store_id: user.storeId || null,
+      expense_limit: user.expenseLimit || 0
+    }).eq('id', user.id!).select().single();
+
+    if (!error && data) {
+      setUsers(prev => prev.map(u => u.id === user.id ? data : u));
+      addNotification(`User "${user.name}" updated successfully`, 'success');
+    } else {
+      addNotification(`Failed to update user: ${error?.message || 'Unknown error'}`, 'error');
+    }
+  };
+
+  const deleteUser = async (id: string) => {
+    const userName = users.find(u => u.id === id)?.name || 'Unknown';
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+
+    if (!error) {
+      setUsers(prev => prev.filter(u => u.id !== id));
+      addNotification(`User "${userName}" deleted successfully`, 'success');
+    } else {
+      addNotification(`Failed to delete user: ${error?.message || 'Unknown error'}`, 'error');
+    }
+  };
+
+  const toggleUserStatus = async (id: string) => {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    const { data, error } = await supabase.from('profiles').update({
+      active: !user.active
+    }).eq('id', id).select().single();
+
+    if (!error && data) {
+      setUsers(prev => prev.map(u => u.id === id ? data : u));
+      addNotification(`User status updated to ${data.active ? 'Active' : 'Suspended'}`, 'success');
+    } else {
+      addNotification(`Failed to update user status: ${error?.message || 'Unknown error'}`, 'error');
+    }
+  };
+
   // Notification Logic (same as before)
   const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -352,10 +431,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addTransaction: (t) => { },
       updateTransaction: (t) => { },
       deleteTransaction: (id) => { },
-      addUser: (u) => { },
-      updateUser: (u) => { },
-      deleteUser: (id) => { },
-      toggleUserStatus: (id) => { },
+      addUser,
+      updateUser,
+      deleteUser,
+      toggleUserStatus,
       addRole, updateRole, deleteRole,
       updateSettings: (s) => { },
       processRefund: (id, items, reason) => { },

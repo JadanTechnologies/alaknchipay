@@ -238,12 +238,21 @@ export const SuperAdmin = () => {
     const handleSaveUser = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
-        const userData: User = {
-            id: editingUser ? editingUser.id : nanoid(),
+        const userData: Partial<User> = editingUser ? {
+            id: editingUser.id,
             name: formData.get('name') as string,
             username: formData.get('username') as string,
             password: formData.get('password') as string,
-            role: formData.get('role') as string, // Changed from Role enum to string
+            role: formData.get('role') as string,
+            active: formData.get('status') === 'active',
+            storeId: formData.get('storeId') as string,
+            expenseLimit: parseFloat(formData.get('expenseLimit') as string) || 0
+        } : {
+            // Don't send ID for new users - let Supabase auto-generate
+            name: formData.get('name') as string,
+            username: formData.get('username') as string,
+            password: formData.get('password') as string,
+            role: formData.get('role') as string,
             active: formData.get('status') === 'active',
             storeId: formData.get('storeId') as string,
             expenseLimit: parseFloat(formData.get('expenseLimit') as string) || 0
@@ -254,12 +263,16 @@ export const SuperAdmin = () => {
     const handleSaveBranch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
-        const branchData: Branch = {
-            id: editingBranch ? editingBranch.id : nanoid(),
+        const branchData: Partial<Branch> = editingBranch ? {
+            id: editingBranch.id,
             name: formData.get('name') as string,
             address: formData.get('address') as string,
             phone: formData.get('phone') as string
-            // managerId removed as per requirement
+        } : {
+            // Don't send ID for new branches - let Supabase auto-generate
+            name: formData.get('name') as string,
+            address: formData.get('address') as string,
+            phone: formData.get('phone') as string
         };
         if (editingBranch) updateBranch(branchData); else addBranch(branchData);
         setIsBranchModalOpen(false); setEditingBranch(null);
@@ -267,8 +280,18 @@ export const SuperAdmin = () => {
     const handleSaveProduct = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
-        const productData: Product = {
-            id: editingProduct ? editingProduct.id : nanoid(),
+        const productData: Partial<Product> = editingProduct ? {
+            id: editingProduct.id,
+            sku: formData.get('sku') as string,
+            name: formData.get('name') as string,
+            category: formData.get('category') as string,
+            costPrice: parseFloat(formData.get('costPrice') as string),
+            sellingPrice: parseFloat(formData.get('sellingPrice') as string),
+            stock: parseInt(formData.get('stock') as string),
+            minStockAlert: parseInt(formData.get('minStockAlert') as string),
+            storeId: formData.get('storeId') as string
+        } : {
+            // Don't send ID for new products - let Supabase auto-generate
             sku: formData.get('sku') as string,
             name: formData.get('name') as string,
             category: formData.get('category') as string,

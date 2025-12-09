@@ -280,7 +280,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     console.log('[StoreContext] Updated store_id in response:', data?.store_id);
 
     if (!error && data) {
-      setUsers(prev => prev.map(u => u.id === user.id ? data : u));
+      // Map database fields to UI model
+      const mappedUser = {
+        ...data,
+        storeId: data.store_id,  // Map snake_case to camelCase
+        expenseLimit: data.expense_limit
+      };
+      setUsers(prev => prev.map(u => u.id === user.id ? mappedUser : u));
       addNotification(`User "${user.name}" updated successfully`, 'success');
     } else {
       addNotification(`Failed to update user: ${error?.message || 'Unknown error'}`, 'error');

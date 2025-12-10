@@ -1,42 +1,48 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../services/supabase';
-import { Session, User } from '@supabase/supabase-js';
+import { initializeLocalStorage } from '../services/localStorage';
+
+interface AuthSession {
+    userId: string;
+    username: string;
+    role: string;
+}
 
 interface AuthContextType {
-    session: Session | null;
-    user: User | null;
-    signOut: () => Promise<void>;
-    loading: boolean; // Add loading state
+    session: AuthSession | null;
+    user: AuthSession | null;
+    signOut: () => void;
+    loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [session, setSession] = useState<Session | null>(null);
-    const [user, setUser] = useState<User | null>(null);
+    const [session, setSession] = useState<AuthSession | null>(null);
+    const [user, setUser] = useState<AuthSession | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check active sessions and sets the user
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
+        // Initialize localStorage with default data
+        initializeLocalStorage();
 
-        // Listen for changes on auth state (logged in, signed out, etc.)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
-
-        return () => subscription.unsubscribe();
+        // Check if user is already logged in
+        const savedSession = localStorage.getItem('alkanchipay_session');
+        if (savedSession) {
+            try {
+                const sessionData = JSON.parse(savedSession);
+                setSession(sessionData);
+                setUser(sessionData);
+            } catch (e) {
+                console.error('Error parsing session', e);
+            }
+        }
+        setLoading(false);
     }, []);
 
-    const signOut = async () => {
-        await supabase.auth.signOut();
+    const signOut = () => {
+        localStorage.removeItem('alkanchipay_session');
+        setSession(null);
+        setUser(null);
     };
 
     return (

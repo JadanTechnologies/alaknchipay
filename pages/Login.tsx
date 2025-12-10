@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { supabase } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
 import { Icons } from '../components/ui/Icons';
+import * as LocalStorage from '../services/localStorage';
 
 export const Login = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,50 +15,38 @@ export const Login = () => {
     setLoading(true);
     setError('');
 
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      // Authenticate user from localStorage
+      const user = LocalStorage.Users.authenticate(username, password);
 
-    if (authError) {
-      setError(authError.message);
-      setLoading(false);
-      return;
-    }
-
-    if (authData.user) {
-      // Check if profile exists
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
-
-      if (!profile) {
-        // Auto-create profile
-        const newProfile = {
-          id: authData.user.id,
-          username: authData.user.email,
-          name: authData.user.email?.split('@')[0] || 'User',
-          role: 'SUPER_ADMIN', // Temporary: Make first user SUPER_ADMIN or default to CASHIER. Let's use SUPER_ADMIN for this user since they are setting it up.
-          active: true,
-          expense_limit: 0
-        };
-
-        const { error: createError } = await supabase.from('profiles').insert([newProfile]);
-
-        if (createError) {
-          setError('Profile not found and could not be created: ' + createError.message);
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
-
-        // Success - Reload to let App handle the new user state
-        window.location.reload();
+      if (!user) {
+        setError('Invalid username or password');
+        setLoading(false);
         return;
       }
+
+      if (!user.active) {
+        setError('Your account has been suspended');
+        setLoading(false);
+        return;
+      }
+
+      // Save session to localStorage
+      const session = {
+        userId: user.id,
+        username: user.username,
+        role: user.role
+      };
+
+      localStorage.setItem('alkanchipay_session', JSON.stringify(session));
+
+      // Reload page to let App handle the new user state
+      window.location.reload();
+    } catch (err) {
+      setError('An error occurred during login');
+      console.error(err);
     }
+
     setLoading(false);
   };
 
@@ -70,17 +59,17 @@ export const Login = () => {
           </div>
         </div>
         <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">AlkanchiPay POS</h1>
-        <p className="text-center text-gray-500 mb-8">Sign in to start your session</p>
+        <p className="text-center text-gray-500 mb-8">Local Storage Version - Sign in to start your session</p>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email/Username</label>
             <input
-              type="email"
+              type="text"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="admin@alkanchipay.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="salmanu@alkanchipay.com"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>
@@ -108,7 +97,9 @@ export const Login = () => {
         </form>
 
         <div className="mt-6 text-xs text-gray-400 text-center border-t pt-4">
-          <p>Contact Administrator for access credentials.</p>
+          <p className="mb-2">Super Admin Credentials:</p>
+          <p>Email: <code className="bg-gray-100 px-1">salmanu@alkanchipay.com</code></p>
+          <p>Password: <code className="bg-gray-100 px-1">Salmanu@2025</code></p>
         </div>
       </div>
     </div>

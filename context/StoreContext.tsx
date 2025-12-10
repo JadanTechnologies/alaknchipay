@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod } from '../types';
-import { supabase } from '../services/supabase';
+import * as LocalStorage from '../services/localStorage';
 import { useAuth } from './AuthContext';
 import { nanoid } from 'nanoid';
 
@@ -12,6 +12,7 @@ interface StoreContextType {
   setUser: (user: User | null) => void;
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
+  updateUserPassword: (userId: string, newPassword: string) => void;
   deleteUser: (id: string) => void;
   toggleUserStatus: (id: string) => void;
   addRole: (role: UserRole) => void; // New
@@ -56,16 +57,18 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { session } = useAuth();
+  const { user: authUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [roles, setRoles] = useState<UserRole[]>([]); // New
-  const [permissions, setPermissions] = useState<Permission[]>([]); // New
+  const [roles, setRoles] = useState<UserRole[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<StoreSettings>({
-    name: 'AlkanchiPay POS', currency: '₦', address: '', logoUrl: ''
+    name: 'AlkanchiPay POS',
+    currency: '₦',
+    address: '',
+    logoUrl: ''
   });
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -74,257 +77,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  // Helpers to map DB response to Types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapProduct = (p: any): Product => ({ ...p, id: p.id, storeId: p.store_id, categoryId: p.category_id, minStockAlert: p.min_stock_alert, costPrice: p.cost_price, sellingPrice: p.selling_price });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapTransaction = (t: any): Transaction => ({ ...t, id: t.id, cashierId: t.cashier_id, storeId: t.store_id, paymentMethod: t.payment_method, amountPaid: t.amount_paid, customerName: t.customer_name, customerPhone: t.customer_phone, cashierName: 'Unknown', items: t.transaction_items || [] });
-
-  const fetchData = useCallback(async () => {
-    if (!session) return;
-
-    // Fetch Profile
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    if (profile) setUser(profile);
-
-    // Fetch All Users (for Super Admin/Admin to manage)
-    const { data: allUsers } = await supabase.from('profiles').select('*');
-    if (allUsers) setUsers(allUsers);
-
-    // Fetch Roles & Permissions
-    const { data: rolesData } = await supabase.from('roles').select('*');
-    const { data: permsData } = await supabase.from('permissions').select('*');
-    const { data: rolePermsData } = await supabase.from('role_permissions').select('*');
-
-    if (rolesData && permsData && rolePermsData) {
-      const formattedRoles: UserRole[] = rolesData.map(r => ({
-        id: r.id,
-        name: r.name,
-        description: r.description,
-        isSystemDefined: r.is_system_defined,
-        permissions: rolePermsData.filter(rp => rp.role_id === r.id).map(rp => {
-          const p = permsData.find(perm => perm.id === rp.permission_id);
-          return p ? p.name : '';
-        }).filter(Boolean)
-      }));
-      setRoles(formattedRoles);
-      setPermissions(permsData);
-    } else {
-      // Fallback for dev/first-run if migration hasn't run yet
-      const defaultRoles: UserRole[] = [
-        { id: 'super_admin', name: Role.SUPER_ADMIN, isSystemDefined: true, permissions: ['Full Access'] },
-        { id: 'branch_manager', name: Role.BRANCH_MANAGER, isSystemDefined: true, permissions: ['Manage Branch'] },
-        { id: 'cashier', name: Role.CASHIER, isSystemDefined: true, permissions: ['Process Sales'] }
-      ];
-      setRoles(defaultRoles);
-    }
-
-    // Fetch all Data (Relying on RLS to filter)
-    const { data: prods } = await supabase.from('products').select('*');
-    if (prods) setProducts(prods.map(mapProduct));
-
-    // Transactions with items - this complexity might need a join or separate fetch
-    const { data: txs } = await supabase.from('transactions').select('*, transaction_items(*)');
-    if (txs) setTransactions(txs.map(mapTransaction));
-
-    const { data: cats } = await supabase.from('categories').select('*');
-    if (cats) setCategories(cats);
-
-    const { data: expCats } = await supabase.from('expense_categories').select('*');
-    if (expCats) setExpenseCategories(expCats);
-
-    const { data: brs } = await supabase.from('branches').select('*');
-    if (brs) setBranches(brs);
-
-    const { data: sets } = await supabase.from('store_settings').select('*').single();
-    if (sets) setSettings(sets);
-
-    // ... fetch other tables
-  }, [session]);
-
+  // Load data from localStorage on mount
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Wrappers for Supabase Actions
-  const addCategory = async (name: string) => {
-    if (!name) return;
-    const { data, error } = await supabase.from('categories').insert({ name }).select().single();
-    if (!error && data) {
-      setCategories(prev => [...prev, data]);
-      addNotification(`Category "${name}" created`, 'success');
-    } else {
-      addNotification('Failed to create category', 'error');
-    }
-  };
-
-  const deleteCategory = async (id: string) => {
-    const { error } = await supabase.from('categories').delete().eq('id', id);
-    if (!error) {
-      setCategories(prev => prev.filter(c => c.id !== id));
-      addNotification('Category deleted', 'info');
-    }
-  };
-
-  // Branch CRUD Operations
-  const addBranch = async (branch: Partial<Branch>) => {
-    console.log('[StoreContext] addBranch called with:', branch);
-    const { data, error } = await supabase.from('branches').insert({
-      name: branch.name,
-      address: branch.address,
-      phone: branch.phone,
-      manager_id: branch.managerId || null
-    }).select().single();
-
-    console.log('[StoreContext] addBranch response:', { data, error });
-
-    if (!error && data) {
-      setBranches(prev => [...prev, data]);
-      addNotification(`Branch "${branch.name}" created successfully`, 'success');
-    } else {
-      addNotification(`Failed to create branch: ${error?.message || 'Unknown error'}`, 'error');
-    }
-  };
-
-  const updateBranch = async (branch: Partial<Branch>) => {
-    console.log('[StoreContext] updateBranch called with:', branch);
-    const { data, error } = await supabase.from('branches').update({
-      name: branch.name,
-      address: branch.address,
-      phone: branch.phone,
-      manager_id: branch.managerId || null
-    }).eq('id', branch.id!).select().single();
-
-    console.log('[StoreContext] updateBranch response:', { data, error });
-
-    if (!error && data) {
-      setBranches(prev => prev.map(b => b.id === branch.id ? data : b));
-      addNotification(`Branch "${branch.name}" updated successfully`, 'success');
-    } else {
-      addNotification(`Failed to update branch: ${error?.message || 'Unknown error'}`, 'error');
-    }
-  };
-
-  const deleteBranch = async (id: string) => {
-    const branchName = branches.find(b => b.id === id)?.name || 'Unknown';
-    const { error } = await supabase.from('branches').delete().eq('id', id);
-
-    if (!error) {
-      setBranches(prev => prev.filter(b => b.id !== id));
-      addNotification(`Branch "${branchName}" deleted successfully`, 'success');
-    } else {
-      addNotification(`Failed to delete branch: ${error?.message || 'Unknown error'}`, 'error');
-    }
-  };
-
-  // User CRUD Operations
-  const addUser = async (user: Partial<User>) => {
-    console.log('[StoreContext] addUser called:', user);
-
-    // Use signUp instead of admin.createUser (works in browser)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: user.username!,
-      password: user.password!,
-      options: {
-        data: {
-          name: user.name,
-          role: user.role
+    const loadData = () => {
+      // Load current user if logged in
+      if (authUser) {
+        const currentUser = LocalStorage.Users.getById(authUser.userId);
+        if (currentUser) {
+          setUser(currentUser);
         }
       }
-    });
 
-    console.log('[StoreContext] signUp response:', { authData, authError });
-
-    if (authError || !authData.user) {
-      addNotification(`Failed to create user: ${authError?.message || 'Unknown error'}`, 'error');
-      return;
-    }
-
-    // Profile is auto-created by trigger, just update it with additional fields
-    const { data, error } = await supabase.from('profiles').update({
-      name: user.name,
-      role: user.role,
-      active: user.active ?? true,
-      store_id: user.storeId || null,
-      expense_limit: user.expenseLimit || 0
-    }).eq('id', authData.user.id).select().single();
-
-    console.log('[StoreContext] profile update response:', { data, error });
-
-    if (!error && data) {
-      setUsers(prev => [...prev, data]);
-      addNotification(`User "${user.name}" created successfully`, 'success');
-    } else {
-      addNotification(`Failed to update user profile: ${error?.message || 'Unknown error'}`, 'error');
-    }
-  };
-
-  const updateUser = async (user: Partial<User>) => {
-    console.log('[StoreContext] updateUser called with full user object:', user);
-    console.log('[StoreContext] Branch/Store ID being sent:', user.storeId);
-
-    const updateData = {
-      username: user.username,
-      name: user.name,
-      role: user.role,
-      active: user.active,
-      store_id: user.storeId || null,
-      expense_limit: user.expenseLimit || 0
+      // Load all data
+      setUsers(LocalStorage.Users.getAll());
+      setRoles(LocalStorage.Roles.getAll());
+      const perms = localStorage.getItem('alkanchipay_permissions');
+      setPermissions(perms ? JSON.parse(perms) : []);
+      setProducts(LocalStorage.Products.getAll());
+      setTransactions(LocalStorage.Transactions.getAll());
+      setSettings(LocalStorage.Settings.get());
+      setBranches(LocalStorage.Branches.getAll());
+      setCategories(LocalStorage.Categories.getAll());
+      const expCats = localStorage.getItem('alkanchipay_expense_categories');
+      setExpenseCategories(expCats ? JSON.parse(expCats) : []);
+      setExpenses(LocalStorage.Expenses.getAll());
+      setActivityLogs(LocalStorage.ActivityLogs.getAll());
     };
 
-    console.log('[StoreContext] Actual update data being sent to Supabase:', updateData);
+    loadData();
+  }, [authUser]);
 
-    const { data, error } = await supabase.from('profiles').update(updateData).eq('id', user.id!).select().single();
-
-    console.log('[StoreContext] updateUser response:', { data, error });
-    console.log('[StoreContext] Updated store_id in response:', data?.store_id);
-
-    if (!error && data) {
-      // Map database fields to UI model
-      const mappedUser = {
-        ...data,
-        storeId: data.store_id,  // Map snake_case to camelCase
-        expenseLimit: data.expense_limit
-      };
-      setUsers(prev => prev.map(u => u.id === user.id ? mappedUser : u));
-      addNotification(`User "${user.name}" updated successfully`, 'success');
-    } else {
-      addNotification(`Failed to update user: ${error?.message || 'Unknown error'}`, 'error');
-    }
-  };
-
-  const deleteUser = async (id: string) => {
-    console.log('[StoreContext] deleteUser called:', id);
-    const userName = users.find(u => u.id === id)?.name || 'Unknown';
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
-
-    console.log('[StoreContext] deleteUser response:', { error });
-
-    if (!error) {
-      setUsers(prev => prev.filter(u => u.id !== id));
-      addNotification(`User "${userName}" deleted successfully`, 'success');
-    } else {
-      addNotification(`Failed to delete user: ${error?.message || 'Unknown error'}`, 'error');
-    }
-  };
-
-  const toggleUserStatus = async (id: string) => {
-    const user = users.find(u => u.id === id);
-    if (!user) return;
-
-    const { data, error } = await supabase.from('profiles').update({
-      active: !user.active
-    }).eq('id', id).select().single();
-
-    if (!error && data) {
-      setUsers(prev => prev.map(u => u.id === id ? data : u));
-      addNotification(`User status updated to ${data.active ? 'Active' : 'Suspended'}`, 'success');
-    } else {
-      addNotification(`Failed to update user status: ${error?.message || 'Unknown error'}`, 'error');
-    }
-  };
-
-  // Notification Logic (same as before)
+  // Notification Logic
   const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
@@ -335,230 +118,396 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTimeout(() => removeNotification(id), 3000);
   }, [removeNotification]);
 
+  // Wrappers for Local Storage Actions
+  const addCategory = (name: string) => {
+    if (!name) return;
+    const newCategory = LocalStorage.Categories.create(name);
+    setCategories(prev => [...prev, newCategory]);
+    addNotification(`Category "${name}" created`, 'success');
+  };
+
+  const deleteCategory = (id: string) => {
+    if (LocalStorage.Categories.delete(id)) {
+      setCategories(prev => prev.filter(c => c.id !== id));
+      addNotification('Category deleted', 'info');
+    } else {
+      addNotification('Failed to delete category', 'error');
+    }
+  };
+
+  // Branch CRUD Operations
+  const addBranch = (branch: Partial<Branch>) => {
+    const newBranch = LocalStorage.Branches.create({
+      name: branch.name || '',
+      address: branch.address || '',
+      phone: branch.phone || '',
+      managerId: branch.managerId
+    });
+
+    setBranches(prev => [...prev, newBranch]);
+    addNotification(`Branch "${branch.name}" created successfully`, 'success');
+  };
+
+  const updateBranch = (branch: Partial<Branch>) => {
+    if (!branch.id) return;
+    const updated = LocalStorage.Branches.update(branch.id, branch);
+    if (updated) {
+      setBranches(prev => prev.map(b => b.id === branch.id ? updated : b));
+      addNotification(`Branch "${branch.name}" updated successfully`, 'success');
+    } else {
+      addNotification('Failed to update branch', 'error');
+    }
+  };
+
+  const deleteBranch = (id: string) => {
+    const branchName = branches.find(b => b.id === id)?.name || 'Unknown';
+    if (LocalStorage.Branches.delete(id)) {
+      setBranches(prev => prev.filter(b => b.id !== id));
+      addNotification(`Branch "${branchName}" deleted successfully`, 'success');
+    } else {
+      addNotification('Failed to delete branch', 'error');
+    }
+  };
+
+  // User CRUD Operations
+  const addUser = (userData: Partial<User>) => {
+    const newUser = LocalStorage.Users.create({
+      name: userData.name || '',
+      username: userData.username || '',
+      password: userData.password || '',
+      role: userData.role || 'CASHIER',
+      active: userData.active ?? true,
+      storeId: userData.storeId,
+      expenseLimit: userData.expenseLimit || 0
+    });
+
+    setUsers(prev => [...prev, newUser]);
+    addNotification(`User "${userData.name}" created successfully`, 'success');
+  };
+
+  const updateUser = (userData: User) => {
+    const updated = LocalStorage.Users.update(userData.id, userData);
+    if (updated) {
+      setUsers(prev => prev.map(u => u.id === userData.id ? updated : u));
+      addNotification(`User "${userData.name}" updated successfully`, 'success');
+    } else {
+      addNotification('Failed to update user', 'error');
+    }
+  };
+
+  const deleteUser = (id: string) => {
+    const userName = users.find(u => u.id === id)?.name || 'Unknown';
+    if (LocalStorage.Users.delete(id)) {
+      setUsers(prev => prev.filter(u => u.id !== id));
+      addNotification(`User "${userName}" deleted successfully`, 'success');
+    } else {
+      addNotification('Failed to delete user', 'error');
+    }
+  };
+
+  const toggleUserStatus = (id: string) => {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    const updated = LocalStorage.Users.update(id, { active: !user.active });
+    if (updated) {
+      setUsers(prev => prev.map(u => u.id === id ? updated : u));
+      addNotification(`User status updated to ${updated.active ? 'Active' : 'Suspended'}`, 'success');
+    } else {
+      addNotification('Failed to update user status', 'error');
+    }
+  };
+
+  const updateUserPassword = (userId: string, newPassword: string) => {
+    const success = LocalStorage.Users.updatePassword(userId, newPassword);
+    if (success) {
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, password: newPassword } : u));
+      addNotification('User password updated successfully', 'success');
+    } else {
+      addNotification('Failed to update user password', 'error');
+    }
+  };
+
   // Auth wrappers
   const login = (username: string) => {
-    // Legacy login not supported with Supabase simple auth, 
-    // UI should switch to useAuth().signInWithPassword
     console.warn("Legacy login called", username);
     return false;
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
+  const logout = () => {
     setUser(null);
   };
 
-  // Simplified stubs for other actions to keep the file compiling 
-  // You should expand these one by one
-  const addProduct = async (p: Partial<Product>) => {
-    console.log('[StoreContext] addProduct called:', p);
+  // Product CRUD Operations
+  const addProduct = (p: Partial<Product>) => {
+    const newProduct = LocalStorage.Products.create({
+      sku: p.sku || '',
+      name: p.name || '',
+      category: p.category || '',
+      costPrice: p.costPrice || 0,
+      sellingPrice: p.sellingPrice || 0,
+      stock: p.stock || 0,
+      minStockAlert: p.minStockAlert || 0,
+      storeId: p.storeId
+    });
 
-    // Find category UUID by name if category is a string
-    let categoryId = null;
-    if (p.category) {
-      const { data: cat } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('name', p.category)
-        .single();
-      categoryId = cat?.id || null;
-      console.log('[StoreContext] Category lookup:', { name: p.category, id: categoryId });
-    }
-
-    const dbProduct = {
-      name: p.name,
-      sku: p.sku,
-      category_id: categoryId,
-      cost_price: p.costPrice,
-      selling_price: p.sellingPrice,
-      stock: p.stock,
-      min_stock_alert: p.minStockAlert,
-      store_id: p.storeId
-    };
-
-    const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
-    console.log('[StoreContext] addProduct response:', { data, error });
-
-    if (!error && data) {
-      setProducts(prev => [...prev, mapProduct(data)]);
-      addNotification(`Product "${p.name}" added successfully`, 'success');
-    } else {
-      addNotification(`Failed to add product: ${error?.message || 'Unknown error'}`, 'error');
-    }
+    setProducts(prev => [...prev, newProduct]);
+    addNotification(`Product "${p.name}" added successfully`, 'success');
   };
 
-  const updateProduct = async (p: Partial<Product>) => {
-    console.log('[StoreContext] updateProduct called:', p);
-
-    // Find category UUID by name if category is a string
-    let categoryId = null;
-    if (p.category) {
-      const { data: cat } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('name', p.category)
-        .single();
-      categoryId = cat?.id || null;
-      console.log('[StoreContext] Category lookup for update:', { name: p.category, id: categoryId });
-    }
-
-    const dbProduct = {
-      name: p.name,
-      sku: p.sku,
-      category_id: categoryId,
-      cost_price: p.costPrice,
-      selling_price: p.sellingPrice,
-      stock: p.stock,
-      min_stock_alert: p.minStockAlert,
-      store_id: p.storeId
-    };
-
-    const { data, error } = await supabase.from('products').update(dbProduct).eq('id', p.id!).select().single();
-    console.log('[StoreContext] updateProduct response:', { data, error });
-
-    if (!error && data) {
-      setProducts(prev => prev.map(prod => prod.id === p.id ? mapProduct(data) : prod));
+  const updateProduct = (p: Product) => {
+    const updated = LocalStorage.Products.update(p.id, p);
+    if (updated) {
+      setProducts(prev => prev.map(prod => prod.id === p.id ? updated : prod));
       addNotification(`Product "${p.name}" updated successfully`, 'success');
     } else {
-      addNotification(`Failed to update product: ${error?.message || 'Unknown error'}`, 'error');
+      addNotification('Failed to update product', 'error');
     }
   };
 
-  const deleteProduct = async (id: string) => {
-    console.log('[StoreContext] deleteProduct called:', id);
+  const deleteProduct = (id: string) => {
     const productName = products.find(p => p.id === id)?.name || 'Unknown';
-    const { error } = await supabase.from('products').delete().eq('id', id);
-
-    console.log('[StoreContext] deleteProduct response:', { error });
-
-    if (!error) {
+    if (LocalStorage.Products.delete(id)) {
       setProducts(prev => prev.filter(p => p.id !== id));
       addNotification(`Product "${productName}" deleted successfully`, 'success');
     } else {
-      addNotification(`Failed to delete product: ${error?.message || 'Unknown error'}`, 'error');
+      addNotification('Failed to delete product', 'error');
     }
   };
 
-  // ... (Other functions need to be similarly refactored to async/Supabase)
-  // For the sake of the tool call limit, I will return the simplified context 
-  // and we can iterate.
-
-
-  const addRole = async (role: UserRole) => {
-    // Optimistic Update
-    setRoles(prev => [...prev, role]);
-
-    // DB Insert logic would go here
-    try {
-      const { data, error } = await supabase.from('roles').insert([{
-        name: role.name, description: role.description, is_system_defined: false
-      }]).select().single();
-
-      if (!error && data) {
-        const permInserts = role.permissions.map(pName => {
-          const p = permissions.find(pm => pm.name === pName);
-          return p ? { role_id: data.id, permission_id: p.id } : null;
-        }).filter(Boolean);
-        if (permInserts.length > 0) await supabase.from('role_permissions').insert(permInserts);
-
-        // Update local state with real ID
-        setRoles(prev => prev.map(r => r.name === role.name ? { ...r, id: data.id } : r));
-        addNotification(`Role "${role.name}" created successfully`, 'success');
-      } else {
-        addNotification(`Failed to create role: ${error?.message || 'Unknown error'}`, 'error');
-      }
-    } catch (e) {
-      console.error("Error adding role", e);
-      addNotification('Failed to create role', 'error');
-    }
-
-    // logActivity('ROLE_CREATED', `Created role ${role.name}`); // Activity log not yet implemented fully in context
+  // Transaction CRUD Operations
+  const addTransaction = (transaction: Transaction) => {
+    const newTransaction = LocalStorage.Transactions.create(transaction);
+    setTransactions(prev => [...prev, newTransaction]);
+    addNotification('Transaction recorded successfully', 'success');
   };
 
-  const updateRole = async (role: UserRole) => {
-    try {
-      const { error } = await supabase.from('roles').update({
-        name: role.name,
-        description: role.description
-      }).eq('id', role.id);
+  const updateTransaction = (transaction: Transaction) => {
+    const updated = LocalStorage.Transactions.update(transaction.id, transaction);
+    if (updated) {
+      setTransactions(prev => prev.map(t => t.id === transaction.id ? updated : t));
+      addNotification('Transaction updated successfully', 'success');
+    } else {
+      addNotification('Failed to update transaction', 'error');
+    }
+  };
 
-      if (!error) {
-        setRoles(prev => prev.map(r => r.id === role.id ? role : r));
-        addNotification(`Role "${role.name}" updated successfully`, 'success');
-      } else {
-        addNotification(`Failed to update role: ${error?.message || 'Unknown error'}`, 'error');
-      }
-    } catch (e) {
-      console.error("Error updating role", e);
+  const deleteTransaction = (id: string) => {
+    if (LocalStorage.Transactions.delete(id)) {
+      setTransactions(prev => prev.filter(t => t.id !== id));
+      addNotification('Transaction deleted successfully', 'success');
+    } else {
+      addNotification('Failed to delete transaction', 'error');
+    }
+  };
+
+  // Expense CRUD Operations
+  const addExpense = (expense: Expense) => {
+    const newExpense = LocalStorage.Expenses.create(expense);
+    setExpenses(prev => [...prev, newExpense]);
+    addNotification('Expense added successfully', 'success');
+  };
+
+  const updateExpense = (expense: Expense) => {
+    const updated = LocalStorage.Expenses.update(expense.id, expense);
+    if (updated) {
+      setExpenses(prev => prev.map(e => e.id === expense.id ? updated : e));
+      addNotification('Expense updated successfully', 'success');
+    } else {
+      addNotification('Failed to update expense', 'error');
+    }
+  };
+
+  const deleteExpense = (id: string) => {
+    if (LocalStorage.Expenses.delete(id)) {
+      setExpenses(prev => prev.filter(e => e.id !== id));
+      addNotification('Expense deleted successfully', 'success');
+    } else {
+      addNotification('Failed to delete expense', 'error');
+    }
+  };
+
+  // Expense Category Operations
+  const addExpenseCategory = (cat: ExpenseCategory) => {
+    const newCat = { ...cat, id: nanoid() };
+    const expCats = localStorage.getItem('alkanchipay_expense_categories');
+    const cats = expCats ? JSON.parse(expCats) : [];
+    localStorage.setItem('alkanchipay_expense_categories', JSON.stringify([...cats, newCat]));
+    setExpenseCategories(prev => [...prev, newCat]);
+    addNotification(`Expense category "${cat.name}" created`, 'success');
+  };
+
+  const deleteExpenseCategory = (id: string) => {
+    const expCats = localStorage.getItem('alkanchipay_expense_categories');
+    const cats = expCats ? JSON.parse(expCats) : [];
+    const filtered = cats.filter((c: ExpenseCategory) => c.id !== id);
+    localStorage.setItem('alkanchipay_expense_categories', JSON.stringify(filtered));
+    setExpenseCategories(prev => prev.filter(c => c.id !== id));
+    addNotification('Expense category deleted', 'info');
+  };
+
+  // Role CRUD Operations
+  const addRole = (role: UserRole) => {
+    const newRole = LocalStorage.Roles.create({
+      name: role.name,
+      description: role.description,
+      isSystemDefined: false,
+      permissions: role.permissions
+    });
+
+    setRoles(prev => [...prev, newRole]);
+    addNotification(`Role "${role.name}" created successfully`, 'success');
+  };
+
+  const updateRole = (role: UserRole) => {
+    const updated = LocalStorage.Roles.update(role.id, role);
+    if (updated) {
+      setRoles(prev => prev.map(r => r.id === role.id ? updated : r));
+      addNotification(`Role "${role.name}" updated successfully`, 'success');
+    } else {
       addNotification('Failed to update role', 'error');
     }
   };
 
-  const deleteRole = async (id: string) => {
+  const deleteRole = (id: string) => {
     const roleName = roles.find(r => r.id === id)?.name || 'Unknown';
-    const { error } = await supabase.from('roles').delete().eq('id', id);
-    if (!error) {
+    if (LocalStorage.Roles.delete(id)) {
       setRoles(prev => prev.filter(r => r.id !== id));
       addNotification(`Role "${roleName}" deleted successfully`, 'success');
     } else {
-      addNotification(`Failed to delete role: ${error?.message || 'Unknown error'}`, 'error');
+      addNotification('Failed to delete role', 'error');
+    }
+  };
+
+  // Settings
+  const updateSettings = (newSettings: StoreSettings) => {
+    LocalStorage.Settings.update(newSettings);
+    setSettings(newSettings);
+    addNotification('Settings updated successfully', 'success');
+  };
+
+  // Process Refund
+  const processRefund = (transactionId: string, items: RefundItem[], reason: string, condition?: string) => {
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (!transaction) {
+      addNotification('Transaction not found', 'error');
+      return;
+    }
+
+    const refundLog = {
+      id: nanoid(),
+      date: new Date().toISOString(),
+      reason,
+      condition,
+      amount: items.reduce((sum, item) => {
+        const cartItem = transaction.items.find(ci => ci.id === item.itemId);
+        return sum + (cartItem ? cartItem.sellingPrice * item.quantity : 0);
+      }, 0),
+      items,
+      processedBy: authUser?.username || 'Unknown'
+    };
+
+    const updatedTransaction = {
+      ...transaction,
+      refunds: [...(transaction.refunds || []), refundLog],
+      status: 'REFUNDED' as any
+    };
+
+    LocalStorage.Transactions.update(transactionId, updatedTransaction);
+    setTransactions(prev => prev.map(t => t.id === transactionId ? updatedTransaction : t));
+    addNotification('Refund processed successfully', 'success');
+  };
+
+  // Backup/Restore
+  const createBackup = (): string => {
+    return LocalStorage.Backup.create();
+  };
+
+  const restoreBackup = (jsonData: string): boolean => {
+    const success = LocalStorage.Backup.restore(jsonData);
+    if (success) {
+      setUsers(LocalStorage.Users.getAll());
+      setRoles(LocalStorage.Roles.getAll());
+      setProducts(LocalStorage.Products.getAll());
+      setTransactions(LocalStorage.Transactions.getAll());
+      setSettings(LocalStorage.Settings.get());
+      setBranches(LocalStorage.Branches.getAll());
+      setCategories(LocalStorage.Categories.getAll());
+      setExpenses(LocalStorage.Expenses.getAll());
+      addNotification('Backup restored successfully', 'success');
+    } else {
+      addNotification('Failed to restore backup', 'error');
+    }
+    return success;
+  };
+
+  // File upload - convert to base64 for localStorage
+  const uploadFile = async (file: File): Promise<string | null> => {
+    try {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string;
+          resolve(base64);
+        };
+        reader.readAsDataURL(file);
+      });
+    } catch (error) {
+      console.error('Upload Exception:', error);
+      addNotification('File upload failed', 'error');
+      return null;
     }
   };
 
   return (
     <StoreContext.Provider value={{
-      user, users, products, transactions, settings, branches, notifications, categories, activityLogs, expenses, expenseCategories,
-      roles, permissions,
-      login, logout,
-      addProduct, updateProduct, deleteProduct,
-      addCategory, deleteCategory,
-      addExpenseCategory: (c) => { },
-      deleteExpenseCategory: (id) => { },
-      addTransaction: (t) => { },
-      updateTransaction: (t) => { },
-      deleteTransaction: (id) => { },
+      user,
+      users,
+      roles,
+      permissions,
+      setUser,
       addUser,
       updateUser,
+      updateUserPassword,
       deleteUser,
       toggleUserStatus,
-      addRole, updateRole, deleteRole,
-      updateSettings: (s) => { },
-      processRefund: (id, items, reason) => { },
+      addRole,
+      updateRole,
+      deleteRole,
+      products,
+      transactions,
+      settings,
+      branches,
+      categories,
+      expenseCategories,
+      notifications,
+      activityLogs,
+      expenses,
+      login,
+      logout,
+      addProduct,
+      updateProduct,
+      deleteProduct,
+      addCategory,
+      deleteCategory,
+      addExpenseCategory,
+      deleteExpenseCategory,
+      addTransaction,
+      updateTransaction,
+      deleteTransaction,
+      updateSettings,
+      processRefund,
       addBranch,
       updateBranch,
       deleteBranch,
-      addNotification, removeNotification,
-      addExpense: (e) => { },
-      updateExpense: (e) => { },
-      deleteExpense: (id) => { },
-      createBackup: () => "",
-      restoreBackup: (d) => false,
-      uploadFile: async (file: File) => {
-        try {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-          const filePath = `${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from('alkanchipay')
-            .upload(filePath, file);
-
-          if (uploadError) {
-            console.error('Upload Error:', uploadError);
-            addNotification('File upload failed', 'error');
-            return null;
-          }
-
-          const { data } = supabase.storage
-            .from('alkanchipay')
-            .getPublicUrl(filePath);
-
-          return data.publicUrl;
-        } catch (error) {
-          console.error('Upload Exception:', error);
-          return null;
-        }
-      }
+      addNotification,
+      removeNotification,
+      addExpense,
+      updateExpense,
+      deleteExpense,
+      createBackup,
+      restoreBackup,
+      uploadFile
     }}>
       {children}
     </StoreContext.Provider>

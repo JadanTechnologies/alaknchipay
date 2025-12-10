@@ -19,12 +19,17 @@ export const SuperAdmin = () => {
         activityLogs, expenses, updateExpense, deleteExpense,
         expenseCategories, addExpenseCategory, deleteExpenseCategory,
         createBackup, restoreBackup, addNotification,
-        roles, permissions, addRole, updateRole, deleteRole // New
+        roles, permissions, addRole, updateRole, deleteRole, // New
+        updateUserPassword
     } = useStore();
 
     // Modal States
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const [passwordChangeUserId, setPasswordChangeUserId] = useState<string | null>(null);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
     const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -259,6 +264,25 @@ export const SuperAdmin = () => {
         };
         if (editingUser) updateUser(userData); else addUser(userData);
         setIsModalOpen(false); setEditingUser(null);
+    };
+
+    const handleChangePassword = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (newPassword !== confirmPassword) {
+            addNotification('Passwords do not match', 'error');
+            return;
+        }
+        if (newPassword.length < 6) {
+            addNotification('Password must be at least 6 characters', 'error');
+            return;
+        }
+        if (passwordChangeUserId) {
+            updateUserPassword(passwordChangeUserId, newPassword);
+            setIsPasswordModalOpen(false);
+            setPasswordChangeUserId(null);
+            setNewPassword('');
+            setConfirmPassword('');
+        }
     };
     const handleSaveBranch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -516,6 +540,7 @@ export const SuperAdmin = () => {
                                             <button onClick={() => toggleUserStatus(u.id)} title={u.active ? "Suspend User" : "Activate User"} className={`${u.active ? 'text-orange-400 hover:text-orange-300' : 'text-green-400 hover:text-green-300'}`}>
                                                 {u.active ? <Icons.Lock size={18} /> : <Icons.Unlock size={18} />}
                                             </button>
+                                            <button onClick={() => { setPasswordChangeUserId(u.id); setIsPasswordModalOpen(true); }} title="Change Password" className="text-yellow-400 hover:text-yellow-300"><Icons.Password size={18} /></button>
                                             <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="text-blue-400 hover:text-blue-300">Edit</button>
                                             <button onClick={() => deleteUser(u.id)} className="text-red-400 hover:text-red-300"><Icons.Delete size={18} /></button>
                                         </td>
@@ -939,6 +964,26 @@ export const SuperAdmin = () => {
                                 <input type="number" name="minStockAlert" defaultValue={editingProduct?.minStockAlert || 5} placeholder="Low Stock Alert" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                                 <select name="storeId" defaultValue={editingProduct?.storeId || ''} className="col-span-2 w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required><option value="">Select Branch</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
                                 <div className="col-span-2 flex gap-2 mt-4"><button type="button" onClick={() => setIsProductModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save Product</button></div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Password Change Modal */}
+                {isPasswordModalOpen && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                        <div className="bg-gray-800 p-6 rounded-xl w-[400px] border border-gray-700">
+                            <h2 className="text-xl font-bold text-white mb-4">Change Password</h2>
+                            <form onSubmit={handleChangePassword} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">New Password</label>
+                                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Enter new password" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">Confirm Password</label>
+                                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Confirm new password" required />
+                                </div>
+                                <div className="flex gap-2 pt-2"><button type="button" onClick={() => { setIsPasswordModalOpen(false); setPasswordChangeUserId(null); setNewPassword(''); setConfirmPassword(''); }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded font-bold">Change</button></div>
                             </form>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod } from '../types';
+import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod, Customer } from '../types';
 import * as LocalStorage from '../services/localStorage';
 import { useAuth } from './AuthContext';
 import { nanoid } from 'nanoid';
@@ -20,6 +20,7 @@ interface StoreContextType {
   deleteRole: (id: string) => void; // New
   products: Product[];
   transactions: Transaction[];
+  customers: Customer[];
   deletedTransactions: Transaction[];
   settings: StoreSettings;
   branches: Branch[];
@@ -53,6 +54,9 @@ interface StoreContextType {
   addExpense: (expense: Expense) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
+  addCustomer: (c: Partial<Customer>) => Customer;
+  updateCustomer: (c: Customer) => void;
+  deleteCustomer: (id: string) => void;
   createBackup: (storeId?: string) => string;
   restoreBackup: (jsonData: string) => boolean;
   uploadFile: (file: File, path?: string) => Promise<string | null>;
@@ -69,6 +73,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [products, setProducts] = useState<Product[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [deletedTransactions, setDeletedTransactions] = useState<Transaction[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [settings, setSettings] = useState<StoreSettings>({
     name: 'AlkanchiPay POS',
     currency: '₦',
@@ -101,6 +106,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setProducts(LocalStorage.Products.getAll());
       setTransactions(LocalStorage.Transactions.getAll());
       setDeletedTransactions(LocalStorage.Transactions.getDeletedAll());
+      setCustomers(LocalStorage.Customers.getAll());
       setSettings(LocalStorage.Settings.get());
       setBranches(LocalStorage.Branches.getAll());
       setCategories(LocalStorage.Categories.getAll());
@@ -117,6 +123,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
+
+  
 
   const addNotification = useCallback((message: string, type: NotificationType) => {
     const id = nanoid();
@@ -138,6 +146,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addNotification('Category deleted', 'info');
     } else {
       addNotification('Failed to delete category', 'error');
+    }
+  };
+
+  // Customer CRUD Operations
+  const addCustomer = (c: Partial<Customer>) => {
+    const newCustomer = LocalStorage.Customers.create({
+      name: c.name || '',
+      phone: c.phone,
+      email: c.email,
+      storeId: c.storeId
+    });
+    setCustomers(prev => [...prev, newCustomer]);
+    addNotification(`Customer "${newCustomer.name}" added`, 'success');
+    return newCustomer;
+  };
+
+  const updateCustomer = (c: Customer) => {
+    const updated = LocalStorage.Customers.update(c.id, c);
+    if (updated) {
+      setCustomers(prev => prev.map(ct => ct.id === c.id ? updated : ct));
+      addNotification(`Customer "${c.name}" updated`, 'success');
+    } else {
+      addNotification('Failed to update customer', 'error');
+    }
+  };
+
+  const deleteCustomer = (id: string) => {
+    if (LocalStorage.Customers.delete(id)) {
+      setCustomers(prev => prev.filter(c => c.id !== id));
+      addNotification('Customer deleted', 'info');
+    } else {
+      addNotification('Failed to delete customer', 'error');
     }
   };
 
@@ -545,6 +585,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addProduct,
       updateProduct,
       deleteProduct,
+      customers,
+      addCustomer,
+      updateCustomer,
+      deleteCustomer,
       addCategory,
       deleteCategory,
       addExpenseCategory,

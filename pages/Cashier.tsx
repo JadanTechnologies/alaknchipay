@@ -9,7 +9,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const Cashier = () => {
-  const { products, user, users, addTransaction, updateTransaction, transactions, settings, logout, processRefund, branches, categories, addNotification, expenses, addExpense, expenseCategories } = useStore();
+    const { products, user, users, addTransaction, updateTransaction, transactions, settings, logout, processRefund, branches, categories, addNotification, expenses, addExpense, expenseCategories, customers, addCustomer } = useStore();
   const [activeTab, setActiveTab] = useState<'pos' | 'dashboard' | 'history' | 'debts' | 'inventory' | 'endofday' | 'returns' | 'profile' | 'expenses'>('pos');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -19,7 +19,13 @@ export const Cashier = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
-  const [customerName, setCustomerName] = useState('');
+    const [customerName, setCustomerName] = useState('');
+    const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+    const [showAddCustomerForm, setShowAddCustomerForm] = useState(false);
+    const [newCustomerName, setNewCustomerName] = useState('');
+    const [newCustomerPhone, setNewCustomerPhone] = useState('');
+    const [newCustomerEmail, setNewCustomerEmail] = useState('');
+    const branchCustomers = customers.filter(c => c.storeId === user?.storeId);
   
   // Checkout State
   const [isSplitPayment, setIsSplitPayment] = useState(false);
@@ -144,12 +150,13 @@ export const Cashier = () => {
   const finalTotal = Math.max(0, cartTotal - calculatedDiscount);
 
   const handleHoldInvoice = () => {
-      const t: Transaction = { id: nanoid(), date: new Date().toISOString(), cashierId: user?.id || 'u', cashierName: user?.name || 'U', storeId: user?.storeId, items: [...cart], subtotal: cartTotal, discount: 0, total: cartTotal, amountPaid: 0, paymentMethod: PaymentMethod.CASH, payments: [], status: TransactionStatus.HELD, customerName: customerName || 'Held Invoice' };
+    const t: Transaction = { id: nanoid(), date: new Date().toISOString(), cashierId: user?.id || 'u', cashierName: user?.name || 'U', storeId: user?.storeId, items: [...cart], subtotal: cartTotal, discount: 0, total: cartTotal, amountPaid: 0, paymentMethod: PaymentMethod.CASH, payments: [], status: TransactionStatus.HELD, customerId: selectedCustomer?.id, customerName: customerName || selectedCustomer?.name || 'Held Invoice', customerPhone: selectedCustomer?.phone };
       addTransaction(t); setCart([]); setCustomerName('');
   };
   const handleRecallInvoice = (t: Transaction) => {
       setCart(t.items);
-      setCustomerName(t.customerName || '');
+    setCustomerName(t.customerName || '');
+    setSelectedCustomer(t.customerId ? customers.find(c => c.id === t.customerId) || null : null);
       setIsRecallModalOpen(false);
   };
   
@@ -177,7 +184,7 @@ export const Cashier = () => {
     const tx: Transaction = {
         id: nanoid(), date: new Date().toISOString(), cashierId: user?.id || 'u', cashierName: user?.name || 'U', storeId: user?.storeId,
         items: [...cart], subtotal: cartTotal, discount: calculatedDiscount, total: finalTotal, amountPaid: realAmountPaid, paymentMethod: isSplitPayment ? PaymentMethod.SPLIT : singlePaymentMethod,
-        payments: finalPayments, status, customerName, dueDate: status === TransactionStatus.PARTIAL ? dueDate : undefined
+        payments: finalPayments, status, customerId: selectedCustomer?.id, customerName, customerPhone: selectedCustomer?.phone, dueDate: status === TransactionStatus.PARTIAL ? dueDate : undefined
     };
     addTransaction(tx); 
     setCompletedTransaction(tx); 
@@ -631,7 +638,32 @@ export const Cashier = () => {
                         )}
                     </div>
                     <div className="p-4 bg-gray-900 border-t border-gray-700">
-                        <input type="text" placeholder="Customer Name (Optional)" className="w-full bg-gray-800 border border-gray-600 text-white p-2 rounded mb-3 text-sm" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                                                <div className="mb-3">
+                                                    <div className="flex gap-2">
+                                                        <select className="flex-1 bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={selectedCustomer?.id || ''} onChange={e => { const id = e.target.value; const c = branchCustomers.find(c => c.id === id) || null; setSelectedCustomer(c); setCustomerName(c?.name || ''); }}>
+                                                            <option value="">-- No customer --</option>
+                                                            {branchCustomers.map(c => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ''}</option>)}
+                                                        </select>
+                                                        <button onClick={() => setShowAddCustomerForm(prev => !prev)} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded">{showAddCustomerForm ? 'Cancel' : 'Add'}</button>
+                                                    </div>
+                                                    {showAddCustomerForm && (
+                                                        <div className="mt-2 grid grid-cols-1 gap-2">
+                                                            <input type="text" placeholder="Customer Name" className="w-full bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} />
+                                                            <input type="text" placeholder="Customer Phone" className="w-full bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={newCustomerPhone} onChange={e => setNewCustomerPhone(e.target.value)} />
+                                                            <input type="email" placeholder="Customer Email" className="w-full bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={newCustomerEmail} onChange={e => setNewCustomerEmail(e.target.value)} />
+                                                            <div className="flex gap-2">
+                                                                <button onClick={() => {
+                                                                    if (!newCustomerName) { addNotification('Customer name is required', 'error'); return; }
+                                                                    const created = addCustomer({ name: newCustomerName, phone: newCustomerPhone, email: newCustomerEmail, storeId: user?.storeId });
+                                                                    setSelectedCustomer(created);
+                                                                    setCustomerName(created.name || newCustomerName);
+                                                                    setNewCustomerName(''); setNewCustomerPhone(''); setNewCustomerEmail(''); setShowAddCustomerForm(false);
+                                                                }} className="bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded">Save</button>
+                                                                <button onClick={() => setShowAddCustomerForm(false)} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded">Cancel</button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                         
                         <div className="flex justify-between mb-2 text-gray-400 text-sm"><span>Subtotal</span><span>{settings.currency}{cartTotal.toFixed(2)}</span></div>
                         <div className="flex justify-between mb-2 text-gray-400 text-sm"><span>Discount</span><span>{settings.currency}{calculatedDiscount.toFixed(2)}</span></div>

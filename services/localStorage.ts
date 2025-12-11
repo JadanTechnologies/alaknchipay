@@ -1,5 +1,5 @@
 // Local Storage Service for AlkanchiPay
-import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseCategory, Branch, Notification } from '../types';
+import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseCategory, Branch, Notification, Customer } from '../types';
 import { nanoid } from 'nanoid';
 
 const STORAGE_KEYS = {
@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   EXPENSE_CATEGORIES: 'alkanchipay_expense_categories',
   BRANCHES: 'alkanchipay_branches',
   SETTINGS: 'alkanchipay_settings',
+  CUSTOMERS: 'alkanchipay_customers',
   ROLES: 'alkanchipay_roles',
   PERMISSIONS: 'alkanchipay_permissions',
   EXPENSES: 'alkanchipay_expenses',
@@ -128,6 +129,9 @@ export const initializeLocalStorage = (): void => {
   }
   if (!localStorage.getItem(STORAGE_KEYS.TRANSACTIONS)) {
     setItem(STORAGE_KEYS.TRANSACTIONS, []);
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.CUSTOMERS)) {
+    setItem(STORAGE_KEYS.CUSTOMERS, []);
   }
   if (!localStorage.getItem(STORAGE_KEYS.DELETED_TRANSACTIONS)) {
     setItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []);
@@ -375,6 +379,44 @@ export const Branches = {
 };
 
 // Expense Operations
+// Customer Operations
+export const Customers = {
+  getAll: (storeId?: string): Customer[] => {
+    const customers = getItem(STORAGE_KEYS.CUSTOMERS, []);
+    return storeId ? customers.filter((c: any) => c.storeId === storeId) : customers;
+  },
+
+  getById: (id: string): Customer | null => {
+    const customers = getItem(STORAGE_KEYS.CUSTOMERS, []);
+    return customers.find((c: any) => c.id === id) || null;
+  },
+
+  create: (customer: Omit<Customer, 'id'>): Customer => {
+    const newCustomer = { ...customer, id: nanoid() };
+    const customers = getItem(STORAGE_KEYS.CUSTOMERS, []);
+    setItem(STORAGE_KEYS.CUSTOMERS, [...customers, newCustomer]);
+    return newCustomer;
+  },
+
+  update: (id: string, updates: Partial<Customer>): Customer | null => {
+    const customers = getItem(STORAGE_KEYS.CUSTOMERS, []);
+    const idx = customers.findIndex((c: any) => c.id === id);
+    if (idx === -1) return null;
+    const updated = { ...customers[idx], ...updates };
+    customers[idx] = updated;
+    setItem(STORAGE_KEYS.CUSTOMERS, customers);
+    return updated;
+  },
+
+  delete: (id: string): boolean => {
+    const customers = getItem(STORAGE_KEYS.CUSTOMERS, []);
+    const filtered = customers.filter((c: any) => c.id !== id);
+    if (filtered.length === customers.length) return false;
+    setItem(STORAGE_KEYS.CUSTOMERS, filtered);
+    return true;
+  }
+};
+
 export const Expenses = {
   getAll: (): Expense[] => getItem(STORAGE_KEYS.EXPENSES, []),
 
@@ -477,6 +519,7 @@ export const Backup = {
         expenses: Expenses.getAll(),
         roles: Roles.getAll(),
         settings: Settings.get(),
+        customers: getItem(STORAGE_KEYS.CUSTOMERS, []),
         activityLogs: ActivityLogs.getAll()
       }
     };
@@ -498,6 +541,7 @@ export const Backup = {
       setItem(STORAGE_KEYS.ROLES, backup.data.roles || []);
       setItem(STORAGE_KEYS.SETTINGS, backup.data.settings || {});
       setItem(STORAGE_KEYS.ACTIVITY_LOGS, backup.data.activityLogs || []);
+      setItem(STORAGE_KEYS.CUSTOMERS, backup.data.customers || []);
 
       return true;
     } catch (e) {

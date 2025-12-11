@@ -9,23 +9,27 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const Admin = () => {
-  const { 
+    const { 
     user, products: allProducts, transactions: allTransactions, 
     addProduct, updateProduct, deleteProduct, settings, updateBranch, 
     users, logout, branches, categories, addCategory, deleteCategory, updateUser,
     expenses, addExpense, updateExpense, updateTransaction, processRefund, expenseCategories,
     createBackup, restoreBackup, addNotification,
-    deletedTransactions, getDeletedTransactions, restoreTransaction, purgeTransaction, deleteTransaction
+        deletedTransactions, getDeletedTransactions, restoreTransaction, purgeTransaction, deleteTransaction,
+        customers, addCustomer, updateCustomer, deleteCustomer
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'reports' | 'debts' | 'expenses' | 'settings' | 'profile' | 'returns' | 'recycleBin'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'reports' | 'debts' | 'expenses' | 'settings' | 'profile' | 'returns' | 'recycleBin' | 'customers'>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [newCustomerName, setNewCustomerName] = useState('');
+    const [newCustomerPhone, setNewCustomerPhone] = useState('');
   
   // Branch Data
   const products = allProducts.filter(p => p.storeId === user?.storeId);
   const transactions = allTransactions.filter(t => t.storeId === user?.storeId);
   const currentBranch = branches.find(b => b.id === user?.storeId);
   const branchExpenses = expenses.filter(e => e.storeId === user?.storeId);
+    const branchCustomers = customers.filter(c => c.storeId === user?.storeId);
   const debtTransactions = transactions.filter(t => t.status === TransactionStatus.PARTIAL || (t.paymentMethod === PaymentMethod.CREDIT && t.amountPaid < t.total));
   
   // Dashboard Metrics
@@ -455,7 +459,7 @@ export const Admin = () => {
            </button>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-            {[{ id: 'dashboard', icon: Icons.Dashboard, label: 'Dashboard' }, { id: 'reports', icon: Icons.Reports, label: 'Reports & Analytics' }, { id: 'inventory', icon: Icons.Inventory, label: 'Branch Inventory' }, { id: 'debts', icon: Icons.Wallet, label: 'Debts & Deposits' }, { id: 'expenses', icon: Icons.Expenses, label: 'Expenses' }, { id: 'returns', icon: Icons.RotateCcw, label: 'Returns' }, { id: 'recycleBin', icon: Icons.Delete, label: 'Recycle Bin' }, { id: 'settings', icon: Icons.Settings, label: 'Branch Settings' }, { id: 'profile', icon: Icons.User, label: 'My Profile' }].map(item => (
+            {[{ id: 'dashboard', icon: Icons.Dashboard, label: 'Dashboard' }, { id: 'reports', icon: Icons.Reports, label: 'Reports & Analytics' }, { id: 'inventory', icon: Icons.Inventory, label: 'Branch Inventory' }, { id: 'debts', icon: Icons.Wallet, label: 'Debts & Deposits' }, { id: 'expenses', icon: Icons.Expenses, label: 'Expenses' }, { id: 'returns', icon: Icons.RotateCcw, label: 'Returns' }, { id: 'customers', icon: Icons.Users, label: 'Customers' }, { id: 'recycleBin', icon: Icons.Delete, label: 'Recycle Bin' }, { id: 'settings', icon: Icons.Settings, label: 'Branch Settings' }, { id: 'profile', icon: Icons.User, label: 'My Profile' }].map(item => (
                 <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition ${activeTab === item.id ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-700 text-gray-300'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                     <item.icon size={20} />{!isSidebarCollapsed && <span>{item.label}</span>}
                 </button>
@@ -516,6 +520,34 @@ export const Admin = () => {
                </div>
            </div>
         )}
+
+                {activeTab === 'customers' && (
+                    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-white text-lg">Customers</h3>
+                            <div className="flex gap-2">
+                                <input value={newCustomerName} onChange={e=>setNewCustomerName(e.target.value)} placeholder="Name" className="bg-gray-900 border border-gray-700 text-white p-2 rounded" />
+                                <input value={newCustomerPhone} onChange={e=>setNewCustomerPhone(e.target.value)} placeholder="Phone" className="bg-gray-900 border border-gray-700 text-white p-2 rounded" />
+                                <button onClick={() => { if(!newCustomerName) { addNotification('Name required', 'error'); return; } addCustomer({ name: newCustomerName, phone: newCustomerPhone, storeId: user?.storeId }); setNewCustomerName(''); setNewCustomerPhone(''); }} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded">Add</button>
+                            </div>
+                        </div>
+                        <div>
+                            <table className="w-full text-left text-sm text-gray-300">
+                                <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold"><tr><th className="p-3">Name</th><th className="p-3">Phone</th><th className="p-3">Action</th></tr></thead>
+                                <tbody className="divide-y divide-gray-700">
+                                    {branchCustomers.map(c => (
+                                        <tr key={c.id} className="hover:bg-gray-700/50">
+                                            <td className="p-3">{c.name}</td>
+                                            <td className="p-3">{c.phone}</td>
+                                            <td className="p-3"><button onClick={() => { if(confirm('Delete this customer?')) deleteCustomer(c.id); }} className="text-red-400 hover:text-red-300">Delete</button></td>
+                                        </tr>
+                                    ))}
+                                    {branchCustomers.length === 0 && <tr><td colSpan={3} className="p-6 text-center text-gray-500">No customers found for this branch.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
 
         {activeTab === 'reports' && (
             <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">

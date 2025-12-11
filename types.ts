@@ -147,6 +147,7 @@ export interface Transaction {
   status: TransactionStatus;
   customerName?: string;
   customerPhone?: string;
+  customerId?: string; // optional link to an actual customer record
   notes?: string;
   refunds?: RefundLog[];
   dueDate?: string; // For credit/partial sales
@@ -154,6 +155,14 @@ export interface Transaction {
   isDeleted?: boolean;
   deletedAt?: string;
   deletedBy?: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  storeId?: string;
 }
 
 export interface Expense {

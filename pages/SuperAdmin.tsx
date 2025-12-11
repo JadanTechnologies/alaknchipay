@@ -61,6 +61,8 @@ export const SuperAdmin = () => {
     const [inventorySearch, setInventorySearch] = useState('');
     const [inventoryBranchFilter, setInventoryBranchFilter] = useState('');
     const [expenseFilterStatus, setExpenseFilterStatus] = useState<string>('ALL');
+    const [userSearch, setUserSearch] = useState('');
+    const [branchSearch, setBranchSearch] = useState('');
 
     // Backup Ref
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -515,8 +517,11 @@ export const SuperAdmin = () => {
 
                 {activeTab === 'users' && (
                     <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-                        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                            <h2 className="text-lg font-bold text-white">User Management</h2>
+                        <div className="p-6 border-b border-gray-700 flex justify-between items-center gap-4">
+                            <div className="flex gap-2 items-center">
+                                <input placeholder="Search users by name or username..." className="bg-gray-900 border border-gray-600 text-white p-2 rounded w-96 text-sm" value={userSearch} onChange={e => setUserSearch(e.target.value)} />
+                                <button onClick={() => setUserSearch('')} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"><Icons.Close size={14} /> Clear</button>
+                            </div>
                             <button onClick={() => { setEditingUser(null); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> Add User</button>
                         </div>
                         <table className="w-full text-left text-sm">
@@ -530,7 +535,10 @@ export const SuperAdmin = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-700 text-gray-200">
-                                {users.map(u => (
+                                {users.filter(u => {
+                                    const search = userSearch.toLowerCase();
+                                    return u.name.toLowerCase().includes(search) || u.username.toLowerCase().includes(search);
+                                }).map(u => (
                                     <tr key={u.id} className="hover:bg-gray-700/50">
                                         <td className="p-4 font-bold text-white">{u.name} <br /><span className="text-gray-500 font-normal">@{u.username}</span></td>
                                         <td className="p-4"><span className="bg-gray-700 text-white px-2 py-1 rounded text-xs">{u.role === Role.ADMIN ? 'BRANCH MANAGER' : u.role}</span></td>
@@ -553,8 +561,11 @@ export const SuperAdmin = () => {
 
                 {activeTab === 'branches' && (
                     <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-                        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                            <h2 className="text-lg font-bold text-white">Branch Management</h2>
+                        <div className="p-6 border-b border-gray-700 flex justify-between items-center gap-4">
+                            <div className="flex gap-2 items-center">
+                                <input placeholder="Search branches..." className="bg-gray-900 border border-gray-600 text-white p-2 rounded w-96 text-sm" value={branchSearch} onChange={e => setBranchSearch(e.target.value)} />
+                                <button onClick={() => setBranchSearch('')} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"><Icons.Close size={14} /> Clear</button>
+                            </div>
                             <button onClick={() => { setEditingBranch(null); setIsBranchModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> Add Branch</button>
                         </div>
                         <table className="w-full text-left text-sm">
@@ -569,7 +580,10 @@ export const SuperAdmin = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-700 text-gray-200">
-                                {branches.map(b => {
+                                {branches.filter(b => {
+                                    const search = branchSearch.toLowerCase();
+                                    return b.name.toLowerCase().includes(search) || b.address.toLowerCase().includes(search);
+                                }).map(b => {
                                     const metrics = getBranchMetrics(b.id);
                                     const financials = branchFinancials.find(f => f.branch.id === b.id);
                                     return (
@@ -598,15 +612,16 @@ export const SuperAdmin = () => {
 
                 {activeTab === 'inventory' && (
                     <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
-                        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                            <div className="flex gap-4">
+                        <div className="p-6 border-b border-gray-700 flex flex-wrap gap-4 items-center">
+                            <div className="flex gap-2 items-center">
                                 <input placeholder="Search Inventory..." className="bg-gray-900 border border-gray-600 text-white p-2 rounded w-64 text-sm" value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} />
-                                <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={inventoryBranchFilter} onChange={e => setInventoryBranchFilter(e.target.value)}>
-                                    <option value="">All Branches</option>
-                                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                </select>
+                                <button onClick={() => setInventorySearch('')} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"><Icons.Close size={14} /> Clear</button>
                             </div>
-                            <button onClick={() => { setEditingProduct(null); setIsProductModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> Add Product</button>
+                            <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={inventoryBranchFilter} onChange={e => setInventoryBranchFilter(e.target.value)}>
+                                <option value="">All Branches</option>
+                                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                            <button onClick={() => { setEditingProduct(null); setIsProductModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold ml-auto"><Icons.Add size={16} /> Add Product</button>
                         </div>
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left text-sm">
@@ -645,12 +660,19 @@ export const SuperAdmin = () => {
                 {activeTab === 'transactions' && (
                     <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
                         <div className="p-6 border-b border-gray-700 flex flex-wrap gap-4 items-center">
-                            <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
-                            <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+                            <div className="flex gap-2 items-center">
+                                <label className="text-sm text-gray-400">From:</label>
+                                <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
+                            </div>
+                            <div className="flex gap-2 items-center">
+                                <label className="text-sm text-gray-400">To:</label>
+                                <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+                            </div>
                             <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterCashier} onChange={e => setFilterCashier(e.target.value)}>
                                 <option value="">All Cashiers</option>
                                 {users.filter(u => u.role === Role.CASHIER).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                             </select>
+                            <button onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setFilterCashier(''); }} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"><Icons.RotateCcw size={14} /> Clear</button>
                         </div>
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left text-sm">

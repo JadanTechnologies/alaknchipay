@@ -240,6 +240,92 @@ export const Admin = () => {
       if(win) { win.document.write(receiptHtml); win.document.close(); }
   };
 
+  const handleGenerateInventoryReport = (mode: 'pdf' | 'print') => {
+    const branchName = currentBranch?.name || 'Main Branch';
+    const totalCostPrice = products.reduce((sum, p) => sum + (p.costPrice * p.stock), 0);
+    const totalSalesPrice = products.reduce((sum, p) => sum + (p.sellingPrice * p.stock), 0);
+    const totalProfit = totalSalesPrice - totalCostPrice;
+
+    if (mode === 'pdf') {
+      const doc = new jsPDF('l', 'mm', 'a4');
+      doc.setFontSize(18); doc.text(settings.name, 14, 15);
+      doc.setFontSize(14); doc.text(`${branchName} - Inventory Report`, 14, 22);
+      doc.setFontSize(10); doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+
+      const columns = ["Product Name", "SKU", "Category", "Cost Price", "Sales Price", "Stock", "Total Cost", "Total Sales"];
+      const rows = products.map(p => [
+        p.name,
+        p.sku,
+        p.category,
+        settings.currency + p.costPrice.toFixed(2),
+        settings.currency + p.sellingPrice.toFixed(2),
+        p.stock.toString(),
+        settings.currency + (p.costPrice * p.stock).toFixed(2),
+        settings.currency + (p.sellingPrice * p.stock).toFixed(2)
+      ]);
+
+      autoTable(doc, { head: [columns], body: rows, startY: 35, styles: { fontSize: 8 } });
+
+      doc.text("Summary", 14, (doc as any).lastAutoTable.finalY + 10);
+      autoTable(doc, {
+        head: [['Metric', 'Amount']],
+        body: [
+          ['Total Products', products.length.toString()],
+          ['Total Cost Value', settings.currency + totalCostPrice.toFixed(2)],
+          ['Total Sales Value', settings.currency + totalSalesPrice.toFixed(2)],
+          ['Total Profit Potential', settings.currency + totalProfit.toFixed(2)]
+        ],
+        startY: (doc as any).lastAutoTable.finalY + 15,
+        theme: 'grid'
+      });
+
+      doc.save(`Inventory_Report_${branchName}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addNotification('Inventory report downloaded', 'success');
+    } else {
+      const html = `
+        <html><head><style>
+          body { font-family: sans-serif; margin: 20px; }
+          h1, h2 { color: #333; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+          th { background-color: #f0f0f0; font-weight: bold; }
+          .summary { margin-top: 20px; }
+          .summary table { width: 50%; }
+        </style></head><body>
+          <h1>${settings.name}</h1>
+          <h2>${branchName} - Inventory Report</h2>
+          <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+          <table>
+            <thead><tr>
+              <th>Product Name</th><th>SKU</th><th>Category</th><th>Cost Price</th><th>Sales Price</th>
+              <th>Stock</th><th>Total Cost</th><th>Total Sales</th>
+            </tr></thead>
+            <tbody>
+              ${products.map(p => `<tr>
+                <td>${p.name}</td><td>${p.sku}</td><td>${p.category}</td>
+                <td>${settings.currency}${p.costPrice.toFixed(2)}</td><td>${settings.currency}${p.sellingPrice.toFixed(2)}</td>
+                <td>${p.stock}</td><td>${settings.currency}${(p.costPrice * p.stock).toFixed(2)}</td>
+                <td>${settings.currency}${(p.sellingPrice * p.stock).toFixed(2)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+          <div class="summary">
+            <h3>Summary</h3>
+            <table>
+              <tr><td><strong>Total Products</strong></td><td>${products.length}</td></tr>
+              <tr><td><strong>Total Cost Value</strong></td><td>${settings.currency}${totalCostPrice.toFixed(2)}</td></tr>
+              <tr><td><strong>Total Sales Value</strong></td><td>${settings.currency}${totalSalesPrice.toFixed(2)}</td></tr>
+              <tr><td><strong>Total Profit Potential</strong></td><td>${settings.currency}${totalProfit.toFixed(2)}</td></tr>
+            </table>
+          </div>
+          <script>window.print();</script>
+        </body></html>`;
+      const win = window.open('', '_blank', 'width=1000,height=600');
+      if (win) { win.document.write(html); win.document.close(); }
+      addNotification('Inventory report opened for printing', 'success');
+    }
+  };
+
   const handleDownloadReportPDF = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
     const branchName = currentBranch?.name || 'Main Branch';
@@ -426,15 +512,22 @@ export const Admin = () => {
 
         {activeTab === 'reports' && (
             <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
                     <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={reportViewMode} onChange={e => setReportViewMode(e.target.value as any)}>
                         <option value="transactions">Transaction History</option>
                         <option value="detailed">Detailed Item Report</option>
                         <option value="deposits">Deposit & Debt Report</option>
                         <option value="items">Remaining Items Report</option>
                     </select>
-                    <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
-                    <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+                    <div className="flex gap-2 items-center">
+                        <label className="text-sm text-gray-400">From:</label>
+                        <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
+                    </div>
+                    <div className="flex gap-2 items-center">
+                        <label className="text-sm text-gray-400">To:</label>
+                        <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+                    </div>
+                    <button onClick={() => { setFilterStartDate(''); setFilterEndDate(''); }} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded font-bold text-sm flex items-center gap-2"><Icons.RotateCcw size={16}/> Clear</button>
                     <div className="flex gap-2 ml-auto">
                         <button onClick={handleDownloadReportPDF} className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold text-sm flex items-center gap-2"><Icons.FileText size={16}/> PDF</button>
                         <button onClick={handlePrintReport} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold text-sm flex items-center gap-2"><Icons.Printer size={16}/> Print</button>
@@ -534,12 +627,16 @@ export const Admin = () => {
                 </div>
                 
                 <div className="flex-1 flex flex-col bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-                    <div className="p-4 border-b border-gray-700 flex justify-between">
+                    <div className="p-4 border-b border-gray-700 flex justify-between items-center gap-4">
                          <div className="flex gap-2 items-center">
                              <button onClick={()=>setShowCategorySidebar(!showCategorySidebar)} className="p-2 hover:bg-gray-700 rounded"><Icons.Menu size={20} className="text-gray-400"/></button>
                              <input placeholder="Search Products..." className="bg-gray-900 border border-gray-600 text-white p-2 rounded w-64" value={inventorySearch} onChange={e=>setInventorySearch(e.target.value)}/>
                          </div>
-                         <button onClick={()=>{setEditingProduct(null); setIsProductModalOpen(true);}} className="bg-blue-600 text-white px-4 py-2 rounded font-bold flex items-center gap-2"><Icons.Plus size={16}/> Add Product</button>
+                         <div className="flex gap-2 items-center">
+                             <button onClick={() => handleGenerateInventoryReport('pdf')} className="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded font-bold text-sm flex items-center gap-2"><Icons.FileText size={16}/> Report PDF</button>
+                             <button onClick={() => handleGenerateInventoryReport('print')} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded font-bold text-sm flex items-center gap-2"><Icons.Printer size={16}/> Print Report</button>
+                             <button onClick={()=>{setEditingProduct(null); setIsProductModalOpen(true);}} className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold flex items-center gap-2"><Icons.Plus size={16}/> Add Product</button>
+                         </div>
                     </div>
                     <div className="flex-1 overflow-auto">
                         <table className="w-full text-left text-sm text-gray-300">

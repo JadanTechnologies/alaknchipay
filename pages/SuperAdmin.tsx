@@ -64,6 +64,7 @@ export const SuperAdmin = () => {
     const [expenseFilterStatus, setExpenseFilterStatus] = useState<string>('ALL');
     const [userSearch, setUserSearch] = useState('');
     const [branchSearch, setBranchSearch] = useState('');
+    const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
 
     // Backup Ref
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -661,35 +662,50 @@ export const SuperAdmin = () => {
 
                 {activeTab === 'transactions' && (
                     <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
-                        <div className="p-6 border-b border-gray-700 flex flex-wrap gap-4 items-center">
-                            <div className="flex gap-2 items-center">
-                                <label className="text-sm text-gray-400">From:</label>
-                                <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
+                        <div className="p-6 border-b border-gray-700 flex flex-wrap gap-4 items-center justify-between">
+                            <div className="flex gap-4 items-center flex-wrap">
+                                <div className="flex gap-2 items-center">
+                                    <label className="text-sm text-gray-400">From:</label>
+                                    <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <label className="text-sm text-gray-400">To:</label>
+                                    <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+                                </div>
+                                <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterCashier} onChange={e => setFilterCashier(e.target.value)}>
+                                    <option value="">All Cashiers</option>
+                                    {users.filter(u => u.role === Role.CASHIER).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                </select>
+                                <button onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setFilterCashier(''); }} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"><Icons.RotateCcw size={14} /> Clear</button>
                             </div>
-                            <div className="flex gap-2 items-center">
-                                <label className="text-sm text-gray-400">To:</label>
-                                <input type="date" className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
-                            </div>
-                            <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={filterCashier} onChange={e => setFilterCashier(e.target.value)}>
-                                <option value="">All Cashiers</option>
-                                {users.filter(u => u.role === Role.CASHIER).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                            </select>
-                            <button onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setFilterCashier(''); }} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"><Icons.RotateCcw size={14} /> Clear</button>
+                            {selectedTransactions.size > 0 && (
+                                <div className="flex gap-2">
+                                    <button onClick={() => { if(window.confirm(`Delete ${selectedTransactions.size} transaction(s)? This will move them to recycle bin.`)) { selectedTransactions.forEach(id => deleteTransaction(id)); setSelectedTransactions(new Set()); } }} className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2">
+                                        <Icons.Delete size={16}/> Delete Selected
+                                    </button>
+                                    <button onClick={() => setSelectedTransactions(new Set())} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">Clear</button>
+                                </div>
+                            )}
                         </div>
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
-                                    <tr><th>Date</th><th>Branch</th><th>Cashier</th><th>Items</th><th>Total</th><th>Status</th></tr>
+                                    <tr>
+                                        <th className="p-4 w-8"><input type="checkbox" className="w-4 h-4 accent-red-600" checked={selectedTransactions.size === filteredTransactions.length && filteredTransactions.length > 0} onChange={e => { if(e.target.checked) { setSelectedTransactions(new Set(filteredTransactions.map(t => t.id))); } else { setSelectedTransactions(new Set()); } }} /></th>
+                                        <th className="p-4">Date</th><th className="p-4">Branch</th><th className="p-4">Cashier</th><th className="p-4">Items</th><th className="p-4">Total</th><th className="p-4">Status</th><th className="p-4">Action</th>
+                                    </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700 text-gray-200">
                                     {filteredTransactions.map(t => (
                                         <tr key={t.id} className="hover:bg-gray-700/50">
+                                            <td className="p-4 w-8"><input type="checkbox" className="w-4 h-4 accent-red-600" checked={selectedTransactions.has(t.id)} onChange={e => { const newSet = new Set(selectedTransactions); if(e.target.checked) { newSet.add(t.id); } else { newSet.delete(t.id); } setSelectedTransactions(newSet); }} /></td>
                                             <td className="p-4">{new Date(t.date).toLocaleString()}</td>
                                             <td className="p-4 text-blue-400">{branches.find(b => b.id === t.storeId)?.name}</td>
                                             <td className="p-4">{t.cashierName}</td>
                                             <td className="p-4">{t.items.length}</td>
                                             <td className="p-4 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td>
                                             <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${t.status === 'COMPLETED' ? 'bg-green-900 text-green-400' : 'bg-orange-900 text-orange-400'}`}>{t.status}</span></td>
+                                            <td className="p-4 flex gap-2"><button onClick={() => { if(window.confirm('Move to recycle bin?')) deleteTransaction(t.id); }} className="text-red-400 hover:text-red-300"><Icons.Delete size={16}/></button></td>
                                         </tr>
                                     ))}
                                 </tbody>

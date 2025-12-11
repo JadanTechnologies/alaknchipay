@@ -44,6 +44,7 @@ export const Admin = () => {
   const [showCategorySidebar, setShowCategorySidebar] = useState(true);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [inventorySearch, setInventorySearch] = useState('');
+  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
   
   // Modals
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -566,18 +567,31 @@ export const Admin = () => {
                             </tfoot>
                         </table>
                     ) : (
-                        <table className="w-full text-left text-sm text-gray-300">
-                           <thead className="bg-gray-900 text-gray-400 text-xs uppercase font-bold"><tr><th>Date</th><th>ID</th><th>Cashier</th><th>Method</th><th>Total</th><th>Status</th></tr></thead>
-                           <tbody className="divide-y divide-gray-700">
-                               {filteredReportTransactions.map(t => (
-                                   <tr key={t.id} className="hover:bg-gray-700/50">
-                                       <td className="p-3">{new Date(t.date).toLocaleString()}</td><td className="p-3 font-mono text-xs">{t.id.slice(0,8)}</td>
-                                       <td className="p-3">{t.cashierName}</td><td className="p-3">{t.paymentMethod}</td>
-                                       <td className="p-3 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td><td className="p-3">{t.status}</td>
-                                   </tr>
-                               ))}
-                           </tbody>
-                        </table>
+                        <div>
+                            {selectedTransactions.size > 0 && (
+                                <div className="mb-4 p-4 bg-gray-900 rounded flex gap-2 items-center">
+                                    <span className="text-white font-bold">{selectedTransactions.size} selected</span>
+                                    <button onClick={() => { if(window.confirm(`Delete ${selectedTransactions.size} transaction(s)? This will move them to recycle bin.`)) { selectedTransactions.forEach(id => deleteTransaction(id)); setSelectedTransactions(new Set()); } }} className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2">
+                                        <Icons.Delete size={16}/> Delete Selected
+                                    </button>
+                                    <button onClick={() => setSelectedTransactions(new Set())} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">Clear</button>
+                                </div>
+                            )}
+                            <table className="w-full text-left text-sm text-gray-300">
+                               <thead className="bg-gray-900 text-gray-400 text-xs uppercase font-bold"><tr><th className="p-3 w-8"><input type="checkbox" className="w-4 h-4 accent-blue-600" checked={selectedTransactions.size === filteredReportTransactions.length && filteredReportTransactions.length > 0} onChange={e => { if(e.target.checked) { setSelectedTransactions(new Set(filteredReportTransactions.map(t => t.id))); } else { setSelectedTransactions(new Set()); } }} /></th><th>Date</th><th>ID</th><th>Cashier</th><th>Method</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+                               <tbody className="divide-y divide-gray-700">
+                                   {filteredReportTransactions.map(t => (
+                                       <tr key={t.id} className="hover:bg-gray-700/50">
+                                           <td className="p-3 w-8"><input type="checkbox" className="w-4 h-4 accent-blue-600" checked={selectedTransactions.has(t.id)} onChange={e => { const newSet = new Set(selectedTransactions); if(e.target.checked) { newSet.add(t.id); } else { newSet.delete(t.id); } setSelectedTransactions(newSet); }} /></td>
+                                           <td className="p-3">{new Date(t.date).toLocaleString()}</td><td className="p-3 font-mono text-xs">{t.id.slice(0,8)}</td>
+                                           <td className="p-3">{t.cashierName}</td><td className="p-3">{t.paymentMethod}</td>
+                                           <td className="p-3 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td><td className="p-3">{t.status}</td>
+                                           <td className="p-3"><button onClick={() => { if(window.confirm('Move to recycle bin?')) deleteTransaction(t.id); }} className="text-red-400 hover:text-red-300"><Icons.Delete size={16}/></button></td>
+                                       </tr>
+                                   ))}
+                               </tbody>
+                            </table>
+                        </div>
                     )}
                  </div>
             </div>

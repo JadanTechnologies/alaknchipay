@@ -21,7 +21,7 @@ export const SuperAdmin = () => {
         createBackup, restoreBackup, addNotification,
         roles, permissions, addRole, updateRole, deleteRole, // New
         updateUserPassword,
-        deletedTransactions, getDeletedTransactions, restoreTransaction, purgeTransaction
+        deletedTransactions, getDeletedTransactions, restoreTransaction, purgeTransaction, deleteTransaction
     } = useStore();
 
     // Modal States

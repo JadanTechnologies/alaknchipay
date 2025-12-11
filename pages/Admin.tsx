@@ -246,6 +246,11 @@ export const Admin = () => {
     const totalSalesPrice = products.reduce((sum, p) => sum + (p.sellingPrice * p.stock), 0);
     const totalProfit = totalSalesPrice - totalCostPrice;
 
+    // Format currency safely for PDF
+    const formatCurrency = (amount: number): string => {
+      return amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
     if (mode === 'pdf') {
       const doc = new jsPDF('l', 'mm', 'a4');
       doc.setFontSize(18); doc.text(settings.name, 14, 15);
@@ -257,11 +262,11 @@ export const Admin = () => {
         p.name,
         p.sku,
         p.category,
-        settings.currency + p.costPrice.toFixed(2),
-        settings.currency + p.sellingPrice.toFixed(2),
+        formatCurrency(p.costPrice),
+        formatCurrency(p.sellingPrice),
         p.stock.toString(),
-        settings.currency + (p.costPrice * p.stock).toFixed(2),
-        settings.currency + (p.sellingPrice * p.stock).toFixed(2)
+        formatCurrency(p.costPrice * p.stock),
+        formatCurrency(p.sellingPrice * p.stock)
       ]);
 
       autoTable(doc, { head: [columns], body: rows, startY: 35, styles: { fontSize: 8 } });
@@ -271,9 +276,9 @@ export const Admin = () => {
         head: [['Metric', 'Amount']],
         body: [
           ['Total Products', products.length.toString()],
-          ['Total Cost Value', settings.currency + totalCostPrice.toFixed(2)],
-          ['Total Sales Value', settings.currency + totalSalesPrice.toFixed(2)],
-          ['Total Profit Potential', settings.currency + totalProfit.toFixed(2)]
+          ['Total Cost Value', formatCurrency(totalCostPrice)],
+          ['Total Sales Value', formatCurrency(totalSalesPrice)],
+          ['Total Profit Potential', formatCurrency(totalProfit)]
         ],
         startY: (doc as any).lastAutoTable.finalY + 15,
         theme: 'grid'
@@ -303,9 +308,9 @@ export const Admin = () => {
             <tbody>
               ${products.map(p => `<tr>
                 <td>${p.name}</td><td>${p.sku}</td><td>${p.category}</td>
-                <td>${settings.currency}${p.costPrice.toFixed(2)}</td><td>${settings.currency}${p.sellingPrice.toFixed(2)}</td>
-                <td>${p.stock}</td><td>${settings.currency}${(p.costPrice * p.stock).toFixed(2)}</td>
-                <td>${settings.currency}${(p.sellingPrice * p.stock).toFixed(2)}</td>
+                <td>${formatCurrency(p.costPrice)}</td><td>${formatCurrency(p.sellingPrice)}</td>
+                <td>${p.stock}</td><td>${formatCurrency(p.costPrice * p.stock)}</td>
+                <td>${formatCurrency(p.sellingPrice * p.stock)}</td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -313,9 +318,9 @@ export const Admin = () => {
             <h3>Summary</h3>
             <table>
               <tr><td><strong>Total Products</strong></td><td>${products.length}</td></tr>
-              <tr><td><strong>Total Cost Value</strong></td><td>${settings.currency}${totalCostPrice.toFixed(2)}</td></tr>
-              <tr><td><strong>Total Sales Value</strong></td><td>${settings.currency}${totalSalesPrice.toFixed(2)}</td></tr>
-              <tr><td><strong>Total Profit Potential</strong></td><td>${settings.currency}${totalProfit.toFixed(2)}</td></tr>
+              <tr><td><strong>Total Cost Value</strong></td><td>${formatCurrency(totalCostPrice)}</td></tr>
+              <tr><td><strong>Total Sales Value</strong></td><td>${formatCurrency(totalSalesPrice)}</td></tr>
+              <tr><td><strong>Total Profit Potential</strong></td><td>${formatCurrency(totalProfit)}</td></tr>
             </table>
           </div>
           <script>window.print();</script>

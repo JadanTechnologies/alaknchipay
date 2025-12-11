@@ -20,6 +20,7 @@ interface StoreContextType {
   deleteRole: (id: string) => void; // New
   products: Product[];
   transactions: Transaction[];
+  deletedTransactions: Transaction[];
   settings: StoreSettings;
   branches: Branch[];
   categories: Category[];
@@ -39,6 +40,9 @@ interface StoreContextType {
   addTransaction: (transaction: Transaction) => void;
   updateTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: string) => void;
+  getDeletedTransactions: () => Transaction[];
+  restoreTransaction: (id: string) => void;
+  purgeTransaction: (id: string) => void;
   updateSettings: (settings: StoreSettings) => void;
   processRefund: (transactionId: string, items: RefundItem[], reason: string, condition?: string) => void;
   addBranch: (branch: Partial<Branch>) => void;
@@ -64,6 +68,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [deletedTransactions, setDeletedTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<StoreSettings>({
     name: 'AlkanchiPay POS',
     currency: '₦',
@@ -95,6 +100,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setPermissions(perms ? JSON.parse(perms) : []);
       setProducts(LocalStorage.Products.getAll());
       setTransactions(LocalStorage.Transactions.getAll());
+      setDeletedTransactions(LocalStorage.Transactions.getDeletedAll());
       setSettings(LocalStorage.Settings.get());
       setBranches(LocalStorage.Branches.getAll());
       setCategories(LocalStorage.Categories.getAll());
@@ -293,11 +299,56 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteTransaction = (id: string) => {
-    if (LocalStorage.Transactions.delete(id)) {
+    const allowedRoles = ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'];
+    const role = authUser?.role || user?.role;
+    if (!allowedRoles.includes(role || '')) {
+      addNotification('You do not have permission to delete transactions', 'error');
+      return;
+    }
+
+    const success = LocalStorage.Transactions.softDelete(id, authUser?.username || user?.username || 'system');
+    if (success) {
       setTransactions(prev => prev.filter(t => t.id !== id));
-      addNotification('Transaction deleted successfully', 'success');
+      const deleted = LocalStorage.Transactions.getDeletedAll();
+      setDeletedTransactions(deleted);
+      addNotification('Transaction moved to recycle bin', 'success');
     } else {
       addNotification('Failed to delete transaction', 'error');
+    }
+  };
+
+  const getDeletedTransactions = (): Transaction[] => {
+    const deleted = LocalStorage.Transactions.getDeletedAll();
+    setDeletedTransactions(deleted);
+    return deleted;
+  };
+
+  const restoreTransaction = (id: string) => {
+    const success = LocalStorage.Transactions.restore(id);
+    if (success) {
+      // refresh lists
+      setTransactions(LocalStorage.Transactions.getAll());
+      setDeletedTransactions(LocalStorage.Transactions.getDeletedAll());
+      addNotification('Transaction restored from recycle bin', 'success');
+    } else {
+      addNotification('Failed to restore transaction', 'error');
+    }
+  };
+
+  const purgeTransaction = (id: string) => {
+    const allowedRoles = ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'];
+    const role = authUser?.role || user?.role;
+    if (!allowedRoles.includes(role || '')) {
+      addNotification('You do not have permission to permanently delete transactions', 'error');
+      return;
+    }
+
+    const success = LocalStorage.Transactions.purge(id);
+    if (success) {
+      setDeletedTransactions(prev => prev.filter(t => t.id !== id));
+      addNotification('Transaction permanently deleted', 'success');
+    } else {
+      addNotification('Failed to permanently delete transaction', 'error');
     }
   };
 
@@ -430,6 +481,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setRoles(LocalStorage.Roles.getAll());
       setProducts(LocalStorage.Products.getAll());
       setTransactions(LocalStorage.Transactions.getAll());
+      setDeletedTransactions(LocalStorage.Transactions.getDeletedAll());
       setSettings(LocalStorage.Settings.get());
       setBranches(LocalStorage.Branches.getAll());
       setCategories(LocalStorage.Categories.getAll());
@@ -495,6 +547,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addTransaction,
       updateTransaction,
       deleteTransaction,
+      deletedTransactions,
+      getDeletedTransactions,
+      restoreTransaction,
+      purgeTransaction,
       updateSettings,
       processRefund,
       addBranch,

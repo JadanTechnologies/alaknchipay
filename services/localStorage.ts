@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'alkanchipay_current_user',
   PRODUCTS: 'alkanchipay_products',
   TRANSACTIONS: 'alkanchipay_transactions',
+  DELETED_TRANSACTIONS: 'alkanchipay_deleted_transactions',
   CATEGORIES: 'alkanchipay_categories',
   EXPENSE_CATEGORIES: 'alkanchipay_expense_categories',
   BRANCHES: 'alkanchipay_branches',
@@ -128,6 +129,9 @@ export const initializeLocalStorage = (): void => {
   if (!localStorage.getItem(STORAGE_KEYS.TRANSACTIONS)) {
     setItem(STORAGE_KEYS.TRANSACTIONS, []);
   }
+  if (!localStorage.getItem(STORAGE_KEYS.DELETED_TRANSACTIONS)) {
+    setItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []);
+  }
   if (!localStorage.getItem(STORAGE_KEYS.EXPENSES)) {
     setItem(STORAGE_KEYS.EXPENSES, []);
   }
@@ -225,15 +229,32 @@ export const Products = {
 
 // Transaction Operations
 export const Transactions = {
-  getAll: (): Transaction[] => getItem(STORAGE_KEYS.TRANSACTIONS, []),
-
-  getById: (id: string): Transaction | null => {
+  // Returns transactions; by default excludes soft-deleted items
+  getAll: (includeDeleted = false): Transaction[] => {
     const transactions = getItem(STORAGE_KEYS.TRANSACTIONS, []);
-    return transactions.find(t => t.id === id) || null;
+    if (includeDeleted) return transactions;
+    return transactions.filter((t: any) => !t.isDeleted);
+  },
+
+  getDeletedAll: (): Transaction[] => getItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []),
+
+  getById: (id: string, includeDeleted = false): Transaction | null => {
+    const transactions = getItem(STORAGE_KEYS.TRANSACTIONS, []);
+    const found = transactions.find((t: any) => t.id === id);
+    if (found) {
+      if (!includeDeleted && found.isDeleted) return null;
+      return found;
+    }
+    // also check deleted store if asked
+    if (includeDeleted) {
+      const deleted = getItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []);
+      return deleted.find((t: any) => t.id === id) || null;
+    }
+    return null;
   },
 
   create: (transaction: Omit<Transaction, 'id'>): Transaction => {
-    const newTransaction = { ...transaction, id: nanoid() };
+    const newTransaction = { ...transaction, id: nanoid(), isDeleted: false };
     const transactions = getItem(STORAGE_KEYS.TRANSACTIONS, []);
     setItem(STORAGE_KEYS.TRANSACTIONS, [...transactions, newTransaction]);
     return newTransaction;
@@ -241,7 +262,7 @@ export const Transactions = {
 
   update: (id: string, updates: Partial<Transaction>): Transaction | null => {
     const transactions = getItem(STORAGE_KEYS.TRANSACTIONS, []);
-    const index = transactions.findIndex(t => t.id === id);
+    const index = transactions.findIndex((t: any) => t.id === id);
     if (index === -1) return null;
     
     const updated = { ...transactions[index], ...updates };
@@ -250,11 +271,49 @@ export const Transactions = {
     return updated;
   },
 
-  delete: (id: string): boolean => {
+  // Soft-delete: mark as deleted and move to deleted store for recycle bin
+  softDelete: (id: string, deletedBy?: string): boolean => {
     const transactions = getItem(STORAGE_KEYS.TRANSACTIONS, []);
-    const filtered = transactions.filter(t => t.id !== id);
-    if (filtered.length === transactions.length) return false;
-    setItem(STORAGE_KEYS.TRANSACTIONS, filtered);
+    const index = transactions.findIndex((t: any) => t.id === id);
+    if (index === -1) return false;
+
+    const toDelete = { ...transactions[index], isDeleted: true, deletedAt: new Date().toISOString(), deletedBy: deletedBy || 'system' };
+
+    // Remove from main store
+    const remaining = transactions.filter((t: any) => t.id !== id);
+    setItem(STORAGE_KEYS.TRANSACTIONS, remaining);
+
+    // Add to deleted store
+    const deleted = getItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []);
+    setItem(STORAGE_KEYS.DELETED_TRANSACTIONS, [...deleted, toDelete]);
+    return true;
+  },
+
+  restore: (id: string): boolean => {
+    const deleted = getItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []);
+    const index = deleted.findIndex((t: any) => t.id === id);
+    if (index === -1) return false;
+
+    const item = { ...deleted[index] };
+    // remove deletion metadata
+    delete item.isDeleted;
+    delete item.deletedAt;
+    delete item.deletedBy;
+
+    const remainingDeleted = deleted.filter((t: any) => t.id !== id);
+    setItem(STORAGE_KEYS.DELETED_TRANSACTIONS, remainingDeleted);
+
+    const transactions = getItem(STORAGE_KEYS.TRANSACTIONS, []);
+    setItem(STORAGE_KEYS.TRANSACTIONS, [...transactions, item]);
+    return true;
+  },
+
+  // Permanently remove from deleted store
+  purge: (id: string): boolean => {
+    const deleted = getItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []);
+    const filtered = deleted.filter((t: any) => t.id !== id);
+    if (filtered.length === deleted.length) return false;
+    setItem(STORAGE_KEYS.DELETED_TRANSACTIONS, filtered);
     return true;
   }
 };
@@ -411,7 +470,8 @@ export const Backup = {
       data: {
         users: Users.getAll(),
         products: Products.getAll(),
-        transactions: Transactions.getAll(),
+        transactions: Transactions.getAll(true),
+        deletedTransactions: getItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []),
         categories: Categories.getAll(),
         branches: Branches.getAll(),
         expenses: Expenses.getAll(),
@@ -431,6 +491,7 @@ export const Backup = {
       setItem(STORAGE_KEYS.USERS, backup.data.users || []);
       setItem(STORAGE_KEYS.PRODUCTS, backup.data.products || []);
       setItem(STORAGE_KEYS.TRANSACTIONS, backup.data.transactions || []);
+      setItem(STORAGE_KEYS.DELETED_TRANSACTIONS, backup.data.deletedTransactions || []);
       setItem(STORAGE_KEYS.CATEGORIES, backup.data.categories || []);
       setItem(STORAGE_KEYS.BRANCHES, backup.data.branches || []);
       setItem(STORAGE_KEYS.EXPENSES, backup.data.expenses || []);

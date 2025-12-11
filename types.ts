@@ -150,6 +150,10 @@ export interface Transaction {
   notes?: string;
   refunds?: RefundLog[];
   dueDate?: string; // For credit/partial sales
+  // Soft-delete metadata
+  isDeleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
 }
 
 export interface Expense {

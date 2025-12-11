@@ -26,18 +26,28 @@ export const HeaderTools = () => {
     };
   }, []);
 
+  const safeEval = (expression: string): string => {
+    try {
+      // Safe calculator: only allow numbers, operators, and parentheses
+      if (!/^[0-9+\-*/(). ]*$/.test(expression)) {
+        return 'Error';
+      }
+      // Use Function constructor instead of eval for better security
+      const fn = new Function('return ' + expression);
+      const result = fn();
+      return String(result);
+    } catch (e) {
+      return 'Error';
+    }
+  };
+
   const handleCalcClick = (val: string) => {
     if (val === 'C') {
         setCalcInput('');
         setCalcResult('');
     } else if (val === '=') {
-        try {
-            // eslint-disable-next-line no-eval
-            const res = eval(calcInput); // Simple eval for demo calculator
-            setCalcResult(String(res));
-        } catch (e) {
-            setCalcResult('Error');
-        }
+        const result = safeEval(calcInput);
+        setCalcResult(result);
     } else {
         setCalcInput(prev => prev + val);
     }

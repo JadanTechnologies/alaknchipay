@@ -299,9 +299,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteTransaction = (id: string) => {
+    // Log for debugging
+    console.log('Delete transaction called for:', id, 'User role:', authUser?.role || user?.role);
+    
     const allowedRoles = ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'];
     const role = authUser?.role || user?.role;
-    if (!allowedRoles.includes(role || '')) {
+    
+    if (!role || !allowedRoles.includes(role)) {
       addNotification('You do not have permission to delete transactions', 'error');
       return;
     }
@@ -338,7 +342,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const purgeTransaction = (id: string) => {
     const allowedRoles = ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'];
     const role = authUser?.role || user?.role;
-    if (!allowedRoles.includes(role || '')) {
+    
+    if (!role || !allowedRoles.includes(role)) {
       addNotification('You do not have permission to permanently delete transactions', 'error');
       return;
     }

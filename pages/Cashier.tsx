@@ -151,7 +151,7 @@ export const Cashier = () => {
 
   const handleHoldInvoice = () => {
     const t: Transaction = { id: nanoid(), date: new Date().toISOString(), cashierId: user?.id || 'u', cashierName: user?.name || 'U', storeId: user?.storeId, items: [...cart], subtotal: cartTotal, discount: 0, total: cartTotal, amountPaid: 0, paymentMethod: PaymentMethod.CASH, payments: [], status: TransactionStatus.HELD, customerId: selectedCustomer?.id, customerName: customerName || selectedCustomer?.name || 'Held Invoice', customerPhone: selectedCustomer?.phone };
-      addTransaction(t); setCart([]); setCustomerName('');
+    addTransaction(t); setCart([]); setCustomerName(''); setSelectedCustomer(null);
   };
   const handleRecallInvoice = (t: Transaction) => {
       setCart(t.items);
@@ -197,6 +197,7 @@ export const Cashier = () => {
       setShowSuccessModal(false);
       setCompletedTransaction(null);
       setCart([]);
+      setCustomerName(''); setSelectedCustomer(null);
   };
 
   const handleClearCart = () => {

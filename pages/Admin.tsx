@@ -454,7 +454,7 @@ export const Admin = () => {
            </button>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-            {[{ id: 'dashboard', icon: Icons.Dashboard, label: 'Dashboard' }, { id: 'reports', icon: Icons.Reports, label: 'Reports & Analytics' }, { id: 'inventory', icon: Icons.Inventory, label: 'Branch Inventory' }, { id: 'debts', icon: Icons.Wallet, label: 'Debts & Deposits' }, { id: 'expenses', icon: Icons.Expenses, label: 'Expenses' }, { id: 'returns', icon: Icons.RotateCcw, label: 'Returns' }, { id: 'recycleBin', icon: Icons.Trash, label: 'Recycle Bin' }, { id: 'settings', icon: Icons.Settings, label: 'Branch Settings' }, { id: 'profile', icon: Icons.User, label: 'My Profile' }].map(item => (
+            {[{ id: 'dashboard', icon: Icons.Dashboard, label: 'Dashboard' }, { id: 'reports', icon: Icons.Reports, label: 'Reports & Analytics' }, { id: 'inventory', icon: Icons.Inventory, label: 'Branch Inventory' }, { id: 'debts', icon: Icons.Wallet, label: 'Debts & Deposits' }, { id: 'expenses', icon: Icons.Expenses, label: 'Expenses' }, { id: 'returns', icon: Icons.RotateCcw, label: 'Returns' }, { id: 'recycleBin', icon: Icons.Delete, label: 'Recycle Bin' }, { id: 'settings', icon: Icons.Settings, label: 'Branch Settings' }, { id: 'profile', icon: Icons.User, label: 'My Profile' }].map(item => (
                 <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition ${activeTab === item.id ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-700 text-gray-300'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                     <item.icon size={20} />{!isSidebarCollapsed && <span>{item.label}</span>}
                 </button>
@@ -800,7 +800,7 @@ export const Admin = () => {
                  <h2 className="text-xl font-bold text-white mb-6">Recycle Bin - Deleted Transactions</h2>
                  {deletedTransactions.length === 0 ? (
                      <div className="text-center py-12">
-                         <Icons.Trash size={48} className="mx-auto text-gray-600 mb-4"/>
+                         <Icons.Delete size={48} className="mx-auto text-gray-600 mb-4"/>
                          <p className="text-gray-400">No deleted transactions</p>
                      </div>
                  ) : (
@@ -831,7 +831,7 @@ export const Admin = () => {
                                                  <Icons.RotateCcw size={14}/> Restore
                                              </button>
                                              <button onClick={() => { if(window.confirm('Permanently delete this transaction? This cannot be undone.')) purgeTransaction(t.id); }} className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs font-bold flex items-center gap-1">
-                                                 <Icons.Trash size={14}/> Purge
+                                                 <Icons.Delete size={14}/> Purge
                                              </button>
                                          </td>
                                      </tr>

@@ -404,7 +404,7 @@ export const SuperAdmin = () => {
                         { id: 'transactions', icon: Icons.Receipt, label: 'Transactions' },
                         { id: 'expenses', icon: Icons.Expenses, label: 'Expenses' },
                         { id: 'activity', icon: Icons.Activity, label: 'Activity Logs' },
-                        { id: 'recycleBin', icon: Icons.Trash, label: 'Recycle Bin' },
+                        { id: 'recycleBin', icon: Icons.Delete, label: 'Recycle Bin' },
                         { id: 'settings', icon: Icons.Settings, label: 'Settings' },
                         { id: 'roles', icon: Icons.Shield, label: 'Roles & Permissions' },
                         { id: 'profile', icon: Icons.User, label: 'My Profile' },
@@ -907,7 +907,7 @@ export const SuperAdmin = () => {
                         <h2 className="text-xl font-bold text-white mb-6">Recycle Bin - Deleted Transactions</h2>
                         {deletedTransactions.length === 0 ? (
                             <div className="text-center py-12">
-                                <Icons.Trash size={48} className="mx-auto text-gray-600 mb-4"/>
+                                <Icons.Delete size={48} className="mx-auto text-gray-600 mb-4"/>
                                 <p className="text-gray-400">No deleted transactions</p>
                             </div>
                         ) : (
@@ -942,7 +942,7 @@ export const SuperAdmin = () => {
                                                             <Icons.RotateCcw size={14}/> Restore
                                                         </button>
                                                         <button onClick={() => { if(window.confirm('Permanently delete this transaction? This cannot be undone.')) purgeTransaction(t.id); }} className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs font-bold flex items-center gap-1">
-                                                            <Icons.Trash size={14}/> Purge
+                                                            <Icons.Delete size={14}/> Purge
                                                         </button>
                                                     </td>
                                                 </tr>

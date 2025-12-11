@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 
 export const DataPersistenceTest = () => {
-    const { addBranch, addUser, addProduct, branches, users, products } = useStore();
+    const { addBranch, addUser, addProduct, branches, users, products, customers, addCustomer } = useStore();
     const [testResults, setTestResults] = useState<string[]>([]);
 
     const addLog = (message: string) => {
@@ -79,6 +79,10 @@ export const DataPersistenceTest = () => {
                         <h3 className="text-white font-bold mb-2">Products</h3>
                         <p className="text-2xl text-purple-400">{products.length}</p>
                     </div>
+                    <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                        <h3 className="text-white font-bold mb-2">Customers</h3>
+                        <p className="text-2xl text-indigo-400">{customers.length}</p>
+                    </div>
                 </div>
 
                 <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-6">
@@ -101,6 +105,20 @@ export const DataPersistenceTest = () => {
                             className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded font-bold"
                         >
                             Test Product Creation
+                        </button>
+                        <button
+                            onClick={async () => {
+                                addLog('🧪 Testing Customer Creation...');
+                                try {
+                                    await addCustomer({ name: `Test Customer ${Date.now()}`, phone: '+10000000001' });
+                                    addLog('✅ Customer creation function called');
+                                } catch (error) {
+                                    addLog(`❌ Customer creation error: ${error}`);
+                                }
+                            }}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold"
+                        >
+                            Test Customer Creation
                         </button>
                         <button
                             onClick={() => setTestResults([])}

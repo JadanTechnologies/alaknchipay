@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod, Customer, PurchaseOrder } from '../types';
+import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod, Customer, PurchaseOrder, ProductTransfer } from '../types';
 import * as LocalStorage from '../services/localStorage';
 import { useAuth } from './AuthContext';
 import { nanoid } from 'nanoid';
@@ -23,6 +23,7 @@ interface StoreContextType {
   customers: Customer[];
   deletedTransactions: Transaction[];
   purchaseOrders: PurchaseOrder[];
+  productTransfers: ProductTransfer[];
   settings: StoreSettings;
   branches: Branch[];
   categories: Category[];
@@ -61,6 +62,11 @@ interface StoreContextType {
   addPurchaseOrder: (order: Omit<PurchaseOrder, 'id'>) => void;
   updatePurchaseOrder: (order: PurchaseOrder) => void;
   deletePurchaseOrder: (id: string) => void;
+  addProductTransfer: (transfer: Omit<ProductTransfer, 'id'>) => void;
+  updateProductTransfer: (transfer: ProductTransfer) => void;
+  approveProductTransfer: (transferId: string, reviewedBy: string, reviewedByName: string) => void;
+  rejectProductTransfer: (transferId: string, reviewedBy: string, reviewedByName: string, reason: string) => void;
+  deleteProductTransfer: (id: string) => void;
   createBackup: (storeId?: string) => string;
   restoreBackup: (jsonData: string) => boolean;
   uploadFile: (file: File, path?: string) => Promise<string | null>;
@@ -79,6 +85,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [deletedTransactions, setDeletedTransactions] = useState<Transaction[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [productTransfers, setProductTransfers] = useState<ProductTransfer[]>([]);
   const [settings, setSettings] = useState<StoreSettings>({
     name: 'AlkanchiPay POS',
     currency: '₦',
@@ -113,6 +120,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setDeletedTransactions(LocalStorage.Transactions.getDeletedAll());
       setCustomers(LocalStorage.Customers.getAll());
       setPurchaseOrders(LocalStorage.PurchaseOrders.getAll());
+      setProductTransfers(LocalStorage.ProductTransfers.getAll());
       setSettings(LocalStorage.Settings.get());
       setBranches(LocalStorage.Branches.getAll());
       setCategories(LocalStorage.Categories.getAll());
@@ -584,6 +592,100 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Product Transfer Management
+  const addProductTransfer = (transfer: Omit<ProductTransfer, 'id'>) => {
+    const newTransfer: ProductTransfer = {
+      ...transfer,
+      id: nanoid()
+    };
+    LocalStorage.ProductTransfers.add(newTransfer);
+    setProductTransfers(prev => [...prev, newTransfer]);
+    logActivity('TRANSFER_CREATED', `Product transfer created to ${transfer.toBranchName}`, user?.id || '', user?.name || '', user?.role || '');
+    addNotification(`Transfer created to ${transfer.toBranchName}`, 'success');
+  };
+
+  const updateProductTransfer = (transfer: ProductTransfer) => {
+    LocalStorage.ProductTransfers.update(transfer);
+    setProductTransfers(prev => prev.map(t => t.id === transfer.id ? transfer : t));
+    addNotification('Transfer updated successfully', 'success');
+  };
+
+  const approveProductTransfer = (transferId: string, reviewedBy: string, reviewedByName: string) => {
+    const transfer = productTransfers.find(t => t.id === transferId);
+    if (!transfer) return;
+
+    // Update transfer status
+    const updatedTransfer: ProductTransfer = {
+      ...transfer,
+      status: 'APPROVED' as any,
+      reviewedBy,
+      reviewedByName,
+      reviewedAt: new Date().toISOString()
+    };
+    LocalStorage.ProductTransfers.update(updatedTransfer);
+    setProductTransfers(prev => prev.map(t => t.id === transferId ? updatedTransfer : t));
+
+    // Add products to destination branch inventory
+    transfer.items.forEach(item => {
+      const existingProduct = products.find(p => p.id === item.productId && p.storeId === transfer.toBranchId);
+      
+      if (existingProduct) {
+        // Update existing product stock
+        const updated: Product = {
+          ...existingProduct,
+          stock: existingProduct.stock + item.quantity,
+          updatedAt: new Date().toISOString()
+        };
+        LocalStorage.Products.update(updated.id, updated);
+        setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
+      } else {
+        // Create new product entry for this branch
+        const newProduct: Product = {
+          id: nanoid(),
+          sku: item.sku,
+          name: item.productName,
+          category: products.find(p => p.id === item.productId)?.category || 'General',
+          costPrice: item.costPrice,
+          sellingPrice: item.sellingPrice,
+          stock: item.quantity,
+          minStockAlert: 10,
+          storeId: transfer.toBranchId,
+          updatedAt: new Date().toISOString()
+        };
+        LocalStorage.Products.add(newProduct);
+        setProducts(prev => [...prev, newProduct]);
+      }
+    });
+
+    logActivity('TRANSFER_APPROVED', `Transfer #${transferId.substring(0, 8)} approved by ${reviewedByName}`, reviewedBy, reviewedByName, user?.role || '');
+    addNotification('Transfer approved and products added to inventory', 'success');
+  };
+
+  const rejectProductTransfer = (transferId: string, reviewedBy: string, reviewedByName: string, reason: string) => {
+    const transfer = productTransfers.find(t => t.id === transferId);
+    if (!transfer) return;
+
+    const updatedTransfer: ProductTransfer = {
+      ...transfer,
+      status: 'REJECTED' as any,
+      reviewedBy,
+      reviewedByName,
+      reviewedAt: new Date().toISOString(),
+      rejectionReason: reason
+    };
+    LocalStorage.ProductTransfers.update(updatedTransfer);
+    setProductTransfers(prev => prev.map(t => t.id === transferId ? updatedTransfer : t));
+
+    logActivity('TRANSFER_REJECTED', `Transfer #${transferId.substring(0, 8)} rejected by ${reviewedByName}: ${reason}`, reviewedBy, reviewedByName, user?.role || '');
+    addNotification('Transfer rejected', 'info');
+  };
+
+  const deleteProductTransfer = (id: string) => {
+    LocalStorage.ProductTransfers.delete(id);
+    setProductTransfers(prev => prev.filter(t => t.id !== id));
+    addNotification('Transfer deleted successfully', 'success');
+  };
+
   return (
     <StoreContext.Provider value={{
       user,
@@ -609,6 +711,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       activityLogs,
       expenses,
       purchaseOrders,
+      productTransfers,
       login,
       logout,
       addProduct,
@@ -642,6 +745,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addPurchaseOrder,
       updatePurchaseOrder,
       deletePurchaseOrder,
+      addProductTransfer,
+      updateProductTransfer,
+      approveProductTransfer,
+      rejectProductTransfer,
+      deleteProductTransfer,
       createBackup,
       restoreBackup,
       uploadFile

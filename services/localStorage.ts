@@ -1,5 +1,5 @@
 // Local Storage Service for AlkanchiPay
-import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseCategory, Branch, Notification, Customer, PurchaseOrder } from '../types';
+import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseCategory, Branch, Notification, Customer, PurchaseOrder, ProductTransfer } from '../types';
 import { nanoid } from 'nanoid';
 
 const STORAGE_KEYS = {
@@ -18,7 +18,8 @@ const STORAGE_KEYS = {
   PERMISSIONS: 'alkanchipay_permissions',
   EXPENSES: 'alkanchipay_expenses',
   ACTIVITY_LOGS: 'alkanchipay_activity_logs',
-  PURCHASE_ORDERS: 'alkanchipay_purchase_orders'
+  PURCHASE_ORDERS: 'alkanchipay_purchase_orders',
+  PRODUCT_TRANSFERS: 'alkanchipay_product_transfers'
 };
 
 // Helper functions
@@ -550,6 +551,47 @@ export const PurchaseOrders = {
   }
 };
 
+// Product Transfers
+export const ProductTransfers = {
+  getAll: (): ProductTransfer[] => getItem(STORAGE_KEYS.PRODUCT_TRANSFERS, []),
+  
+  getById: (id: string): ProductTransfer | undefined => {
+    const transfers = ProductTransfers.getAll();
+    return transfers.find(t => t.id === id);
+  },
+
+  getByBranch: (branchId: string): ProductTransfer[] => {
+    const transfers = ProductTransfers.getAll();
+    return transfers.filter(t => t.toBranchId === branchId);
+  },
+
+  getPendingByBranch: (branchId: string): ProductTransfer[] => {
+    const transfers = ProductTransfers.getAll();
+    return transfers.filter(t => t.toBranchId === branchId && t.status === 'PENDING');
+  },
+
+  add: (transfer: ProductTransfer): void => {
+    const transfers = ProductTransfers.getAll();
+    transfers.push(transfer);
+    setItem(STORAGE_KEYS.PRODUCT_TRANSFERS, transfers);
+  },
+
+  update: (transfer: ProductTransfer): void => {
+    const transfers = ProductTransfers.getAll();
+    const index = transfers.findIndex(t => t.id === transfer.id);
+    if (index !== -1) {
+      transfers[index] = transfer;
+      setItem(STORAGE_KEYS.PRODUCT_TRANSFERS, transfers);
+    }
+  },
+
+  delete: (id: string): void => {
+    const transfers = ProductTransfers.getAll();
+    const filtered = transfers.filter(t => t.id !== id);
+    setItem(STORAGE_KEYS.PRODUCT_TRANSFERS, filtered);
+  }
+};
+
 // Backup/Restore
 export const Backup = {
   create: (): string => {
@@ -567,7 +609,8 @@ export const Backup = {
         settings: Settings.get(),
         customers: getItem(STORAGE_KEYS.CUSTOMERS, []),
         activityLogs: ActivityLogs.getAll(),
-        purchaseOrders: PurchaseOrders.getAll()
+        purchaseOrders: PurchaseOrders.getAll(),
+        productTransfers: ProductTransfers.getAll()
       }
     };
     return JSON.stringify(backup);
@@ -590,6 +633,7 @@ export const Backup = {
       setItem(STORAGE_KEYS.ACTIVITY_LOGS, backup.data.activityLogs || []);
       setItem(STORAGE_KEYS.CUSTOMERS, backup.data.customers || []);
       setItem(STORAGE_KEYS.PURCHASE_ORDERS, backup.data.purchaseOrders || []);
+      setItem(STORAGE_KEYS.PRODUCT_TRANSFERS, backup.data.productTransfers || []);
 
       return true;
     } catch (e) {

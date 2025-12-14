@@ -71,7 +71,7 @@ export const PurchaseOrderReport: React.FC<PurchaseOrderReportProps> = ({
     const statusX = pageWidth - margin - statusWidth;
     
     // Status background
-    const statusColor = purchaseOrder.status === 'COMPLETED' ? successColor : 
+    const statusColor = purchaseOrder.status === 'RECEIVED' ? successColor : 
                        purchaseOrder.status === 'PENDING' ? [234, 179, 8] : 
                        [239, 68, 68];
     doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);

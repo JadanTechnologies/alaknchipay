@@ -2,11 +2,12 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Icons } from '../components/ui/Icons';
-import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus, ExpenseCategory, UserRole, Permission, PurchaseOrder, PurchaseOrderStatus } from '../types';
+import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus, ExpenseCategory, UserRole, Permission, PurchaseOrder, PurchaseOrderStatus, ProductTransfer, ProductTransferStatus } from '../types';
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
 import { PurchaseOrderForm } from '../components/ui/PurchaseOrderForm';
 import { PurchaseOrderReport } from '../components/ui/PurchaseOrderReport';
+import { ProductTransferForm } from '../components/ui/ProductTransferForm';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -21,9 +22,10 @@ export const SuperAdmin = () => {
         activityLogs, expenses, updateExpense, deleteExpense,
         expenseCategories, addExpenseCategory, deleteExpenseCategory,
         createBackup, restoreBackup, addNotification,
-        roles, permissions, addRole, updateRole, deleteRole, // New
+        roles, permissions, addRole, updateRole, deleteRole,
         updateUserPassword,
         purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder,
+        productTransfers, addProductTransfer, updateProductTransfer, deleteProductTransfer,
         deletedTransactions, getDeletedTransactions, restoreTransaction, purgeTransaction, deleteTransaction
     } = useStore();
 
@@ -60,8 +62,12 @@ export const SuperAdmin = () => {
     const [purchaseOrderFilterStatus, setPurchaseOrderFilterStatus] = useState<string>('ALL');
     const [selectedPurchaseOrderForReport, setSelectedPurchaseOrderForReport] = useState<PurchaseOrder | null>(null);
 
+    // Product Transfer Modal
+    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+    const [transferFilterStatus, setTransferFilterStatus] = useState<string>('ALL');
+
     // View & Nav State
-    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'transactions' | 'settings' | 'inventory' | 'profile' | 'activity' | 'expenses' | 'purchases' | 'recycleBin'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'transactions' | 'settings' | 'inventory' | 'profile' | 'activity' | 'expenses' | 'purchases' | 'transfers' | 'recycleBin'>('overview');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     // Filters
@@ -397,6 +403,36 @@ export const SuperAdmin = () => {
         addNotification(`Purchase order converted to inventory. ${po.items.length} product(s) added.`, 'success');
     };
 
+    // Product Transfer Handlers
+    const handleCreateTransfer = (transferData: {
+        toBranchId: string;
+        toBranchName: string;
+        items: any[];
+        notes?: string;
+    }) => {
+        if (!user) return;
+        
+        addProductTransfer({
+            date: new Date().toISOString(),
+            fromBranchId: undefined,
+            fromBranchName: 'Central Inventory',
+            toBranchId: transferData.toBranchId,
+            toBranchName: transferData.toBranchName,
+            items: transferData.items,
+            status: 'PENDING' as any,
+            createdBy: user.id,
+            createdByName: user.name,
+            notes: transferData.notes
+        });
+        
+        setIsTransferModalOpen(false);
+    };
+
+    const filteredTransfers = productTransfers.filter(t => {
+        if (transferFilterStatus === 'ALL') return true;
+        return t.status === transferFilterStatus;
+    });
+
     const handleAddCategory = (e: React.FormEvent) => {
         e.preventDefault();
         if (newCategoryName.trim()) { addCategory(newCategoryName.trim()); setNewCategoryName(''); }
@@ -460,6 +496,7 @@ export const SuperAdmin = () => {
                         { id: 'users', icon: Icons.Users, label: 'Users' },
                         { id: 'inventory', icon: Icons.Inventory, label: 'Global Inventory' },
                         { id: 'purchases', icon: Icons.ShoppingCart, label: 'Purchases' },
+                        { id: 'transfers', icon: Icons.Send, label: 'Product Transfers' },
                         { id: 'transactions', icon: Icons.Receipt, label: 'Transactions' },
                         { id: 'expenses', icon: Icons.Expenses, label: 'Expenses' },
                         { id: 'activity', icon: Icons.Activity, label: 'Activity Logs' },
@@ -1159,6 +1196,133 @@ export const SuperAdmin = () => {
                                 </table>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* PRODUCT TRANSFERS TAB */}
+                {activeTab === 'transfers' && (
+                    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
+                        <div className="p-6 border-b border-gray-700 flex flex-wrap gap-4 items-center justify-between">
+                            <div className="flex gap-4 items-center">
+                                <select 
+                                    className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" 
+                                    value={transferFilterStatus} 
+                                    onChange={e => setTransferFilterStatus(e.target.value)}
+                                >
+                                    <option value="ALL">All Transfers</option>
+                                    <option value="PENDING">Pending</option>
+                                    <option value="APPROVED">Approved</option>
+                                    <option value="REJECTED">Rejected</option>
+                                </select>
+                                <button 
+                                    onClick={() => setTransferFilterStatus('ALL')} 
+                                    className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"
+                                >
+                                    <Icons.RotateCcw size={14} /> Clear
+                                </button>
+                            </div>
+                            <button 
+                                onClick={() => setIsTransferModalOpen(true)} 
+                                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"
+                            >
+                                <Icons.Add size={16} /> New Transfer
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-auto">
+                            {filteredTransfers.length === 0 ? (
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    <div className="text-center">
+                                        <Icons.Send size={48} className="mx-auto mb-4 opacity-50" />
+                                        <p>No product transfers found</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
+                                        <tr>
+                                            <th className="p-4">Date</th>
+                                            <th className="p-4">Transfer ID</th>
+                                            <th className="p-4">To Branch</th>
+                                            <th className="p-4">Items</th>
+                                            <th className="p-4">Total Units</th>
+                                            <th className="p-4">Status</th>
+                                            <th className="p-4">Reviewed By</th>
+                                            <th className="p-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-700 text-gray-200">
+                                        {filteredTransfers.map(transfer => {
+                                            const totalUnits = transfer.items.reduce((sum, item) => sum + item.quantity, 0);
+                                            return (
+                                                <tr key={transfer.id} className="hover:bg-gray-700/50">
+                                                    <td className="p-4">{new Date(transfer.date).toLocaleDateString()}</td>
+                                                    <td className="p-4 font-mono text-xs">#{transfer.id.substring(0, 8).toUpperCase()}</td>
+                                                    <td className="p-4 text-blue-400">{transfer.toBranchName}</td>
+                                                    <td className="p-4">{transfer.items.length} items</td>
+                                                    <td className="p-4 font-bold">{totalUnits} units</td>
+                                                    <td className="p-4">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                            transfer.status === 'APPROVED' ? 'bg-green-900 text-green-400' :
+                                                            transfer.status === 'PENDING' ? 'bg-yellow-900 text-yellow-400' :
+                                                            'bg-red-900 text-red-400'
+                                                        }`}>
+                                                            {transfer.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-gray-400 text-xs">
+                                                        {transfer.reviewedByName || '-'}
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        <button 
+                                                            onClick={() => { 
+                                                                if(window.confirm('Delete this transfer?')) 
+                                                                    deleteProductTransfer(transfer.id); 
+                                                            }} 
+                                                            className="text-red-400 hover:text-red-300"
+                                                        >
+                                                            <Icons.Delete size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+
+                        {/* Transfer Summary */}
+                        <div className="p-4 border-t border-gray-700 bg-gray-900/50 grid grid-cols-4 gap-4 text-sm">
+                            <div>
+                                <p className="text-gray-400 text-xs font-bold">Total Transfers</p>
+                                <p className="text-xl font-bold text-white">{filteredTransfers.length}</p>
+                            </div>
+                            <div>
+                                <p className="text-gray-400 text-xs font-bold">Pending</p>
+                                <p className="text-xl font-bold text-yellow-400">{filteredTransfers.filter(t => t.status === 'PENDING').length}</p>
+                            </div>
+                            <div>
+                                <p className="text-gray-400 text-xs font-bold">Approved</p>
+                                <p className="text-xl font-bold text-green-400">{filteredTransfers.filter(t => t.status === 'APPROVED').length}</p>
+                            </div>
+                            <div>
+                                <p className="text-gray-400 text-xs font-bold">Rejected</p>
+                                <p className="text-xl font-bold text-red-400">{filteredTransfers.filter(t => t.status === 'REJECTED').length}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Transfer Modal */}
+                {isTransferModalOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+                        <ProductTransferForm
+                            products={products}
+                            branches={branches}
+                            onSubmit={handleCreateTransfer}
+                            onCancel={() => setIsTransferModalOpen(false)}
+                        />
                     </div>
                 )}
 

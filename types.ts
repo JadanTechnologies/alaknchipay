@@ -247,3 +247,36 @@ export interface PurchaseOrder {
   convertedToInventory?: boolean; // Whether items have been added to inventory
   convertedAt?: string; // When items were added to inventory
 }
+
+export enum ProductTransferStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED'
+}
+
+export interface ProductTransferItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  costPrice: number;
+  sellingPrice: number;
+}
+
+export interface ProductTransfer {
+  id: string;
+  date: string; // ISO string
+  fromBranchId?: string; // Source branch (undefined means from Super Admin/central inventory)
+  fromBranchName?: string;
+  toBranchId: string; // Destination branch
+  toBranchName: string;
+  items: ProductTransferItem[];
+  status: ProductTransferStatus;
+  createdBy: string; // User ID of super admin
+  createdByName: string;
+  notes?: string;
+  reviewedBy?: string; // User ID of admin who approved/rejected
+  reviewedByName?: string;
+  reviewedAt?: string; // When it was approved/rejected
+  rejectionReason?: string; // Reason for rejection
+}

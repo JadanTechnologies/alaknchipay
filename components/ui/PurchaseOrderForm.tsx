@@ -123,66 +123,87 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
         
         <div className="item-input-section">
           <div className="form-row">
-            <input
-              type="text"
-              placeholder="Serial Number (S/N)"
-              value={currentItem.serialNumber || ''}
-              onChange={(e) => setCurrentItem({ ...currentItem, serialNumber: e.target.value })}
-              className="form-input"
-            />
-            <input
-              type="text"
-              placeholder="Item Name"
-              value={currentItem.itemName || ''}
-              onChange={(e) => setCurrentItem({ ...currentItem, itemName: e.target.value })}
-              className="form-input"
-            />
-            <input
-              type="text"
-              placeholder="Model Number"
-              value={currentItem.modelNumber || ''}
-              onChange={(e) => setCurrentItem({ ...currentItem, modelNumber: e.target.value })}
-              className="form-input"
-            />
+            <div className="form-group">
+              <label htmlFor="serialNumber">Serial Number (S/N)</label>
+              <input
+                id="serialNumber"
+                type="text"
+                value={currentItem.serialNumber || ''}
+                onChange={(e) => setCurrentItem({ ...currentItem, serialNumber: e.target.value })}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="itemName">Item Name</label>
+              <input
+                id="itemName"
+                type="text"
+                value={currentItem.itemName || ''}
+                onChange={(e) => setCurrentItem({ ...currentItem, itemName: e.target.value })}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="modelNumber">Model Number</label>
+              <input
+                id="modelNumber"
+                type="text"
+                value={currentItem.modelNumber || ''}
+                onChange={(e) => setCurrentItem({ ...currentItem, modelNumber: e.target.value })}
+                className="form-input"
+              />
+            </div>
           </div>
 
           <div className="form-row">
-            <input
-              type="number"
-              placeholder="Quantity"
-              min="1"
-              step="1"
-              value={currentItem.quantity || 0}
-              onChange={(e) => setCurrentItem({ ...currentItem, quantity: parseInt(e.target.value) || 0 })}
-              className="form-input"
-            />
-            <input
-              type="number"
-              placeholder="Cost Price (per unit from supplier)"
-              min="0"
-              step="0.01"
-              value={currentItem.costPrice || 0}
-              onChange={(e) => setCurrentItem({ ...currentItem, costPrice: parseFloat(e.target.value) || 0 })}
-              className="form-input"
-            />
-            <input
-              type="number"
-              placeholder="Store Cost Price"
-              min="0"
-              step="0.01"
-              value={currentItem.storeCostPrice || 0}
-              onChange={(e) => setCurrentItem({ ...currentItem, storeCostPrice: parseFloat(e.target.value) || 0 })}
-              className="form-input"
-            />
-            <input
-              type="number"
-              placeholder="Store Selling Price"
-              min="0"
-              step="0.01"
-              value={currentItem.storeSellingPrice || 0}
-              onChange={(e) => setCurrentItem({ ...currentItem, storeSellingPrice: parseFloat(e.target.value) || 0 })}
-              className="form-input"
-            />
+            <div className="form-group">
+              <label htmlFor="quantity">Quantity</label>
+              <input
+                id="quantity"
+                type="number"
+                min="1"
+                step="1"
+                value={currentItem.quantity || 0}
+                onChange={(e) => setCurrentItem({ ...currentItem, quantity: parseInt(e.target.value) || 0 })}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="costPrice">Cost Price (from supplier)</label>
+              <input
+                id="costPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                value={currentItem.costPrice || 0}
+                onChange={(e) => setCurrentItem({ ...currentItem, costPrice: parseFloat(e.target.value) || 0 })}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="storeCostPrice">Store Cost Price</label>
+              <input
+                id="storeCostPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                value={currentItem.storeCostPrice || 0}
+                onChange={(e) => setCurrentItem({ ...currentItem, storeCostPrice: parseFloat(e.target.value) || 0 })}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="storeSellingPrice">Store Selling Price</label>
+              <input
+                id="storeSellingPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                value={currentItem.storeSellingPrice || 0}
+                onChange={(e) => setCurrentItem({ ...currentItem, storeSellingPrice: parseFloat(e.target.value) || 0 })}
+                className="form-input"
+              />
+            </div>
             <button
               type="button"
               onClick={handleAddItem}

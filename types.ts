@@ -224,8 +224,10 @@ export interface PurchaseOrderItem {
   itemName: string;
   modelNumber: string;
   quantity: number;
-  costPrice: number; // Cost per unit
+  costPrice: number; // Cost per unit from supplier
   totalCostPrice: number; // costPrice * quantity (auto-calculated)
+  storeCostPrice: number; // Cost price to store in inventory
+  storeSellingPrice: number; // Selling price to store in inventory
 }
 
 export interface PurchaseOrder {

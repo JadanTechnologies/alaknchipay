@@ -6,6 +6,7 @@ import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense,
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
 import { PurchaseOrderForm } from '../components/ui/PurchaseOrderForm';
+import { PurchaseOrderReport } from '../components/ui/PurchaseOrderReport';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -57,6 +58,7 @@ export const SuperAdmin = () => {
     const [isPurchaseOrderModalOpen, setIsPurchaseOrderModalOpen] = useState(false);
     const [editingPurchaseOrder, setEditingPurchaseOrder] = useState<PurchaseOrder | null>(null);
     const [purchaseOrderFilterStatus, setPurchaseOrderFilterStatus] = useState<string>('ALL');
+    const [selectedPurchaseOrderForReport, setSelectedPurchaseOrderForReport] = useState<PurchaseOrder | null>(null);
 
     // View & Nav State
     const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'transactions' | 'settings' | 'inventory' | 'profile' | 'activity' | 'expenses' | 'purchases' | 'recycleBin'>('overview');
@@ -376,8 +378,8 @@ export const SuperAdmin = () => {
                 sku: `PO-${po.id.substring(0, 8)}-${item.serialNumber}`,
                 name: item.itemName,
                 category: 'Purchased Items',
-                costPrice: item.costPrice,
-                sellingPrice: item.costPrice * 1.3, // Default 30% markup
+                costPrice: item.storeCostPrice, // Use the stored cost price
+                sellingPrice: item.storeSellingPrice, // Use the stored selling price
                 stock: item.quantity,
                 minStockAlert: Math.ceil(item.quantity * 0.2),
                 updatedAt: new Date().toISOString()
@@ -1017,21 +1019,30 @@ export const SuperAdmin = () => {
                                     <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
                                         <tr>
                                             <th className="p-4">Date</th>
-                                            <th className="p-4">Items</th>
+                                            <th className="p-4">Items (Qty)</th>
+                                            <th className="p-4">Item Cost</th>
+                                            <th className="p-4">Shipping Cost</th>
                                             <th className="p-4">Total Cost</th>
-                                            <th className="p-4">Shipping</th>
+                                            <th className="p-4">Store Cost</th>
+                                            <th className="p-4">Store Price</th>
                                             <th className="p-4">Status</th>
-                                            <th className="p-4">Created By</th>
                                             <th className="p-4 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-700 text-gray-200">
-                                        {filteredPurchaseOrders.map(po => (
+                                        {filteredPurchaseOrders.map(po => {
+                                          const totalStoreQuantity = po.items.reduce((sum, item) => sum + item.quantity, 0);
+                                          const avgStoreCost = po.items.length > 0 ? po.items.reduce((sum, item) => sum + item.storeCostPrice, 0) / po.items.length : 0;
+                                          const avgStorePrice = po.items.length > 0 ? po.items.reduce((sum, item) => sum + item.storeSellingPrice, 0) / po.items.length : 0;
+                                          return (
                                             <tr key={po.id} className="hover:bg-gray-700/50">
                                                 <td className="p-4">{new Date(po.date).toLocaleDateString()}</td>
-                                                <td className="p-4 text-blue-400">{po.items.length} items</td>
-                                                <td className="p-4 font-bold text-white">{settings.currency}{po.totalCost.toFixed(2)}</td>
-                                                <td className="p-4">{settings.currency}{po.shippingExpense.toFixed(2)}</td>
+                                                <td className="p-4 text-blue-400">{po.items.length} items ({totalStoreQuantity} units)</td>
+                                                <td className="p-4 font-bold text-white">{settings.currency}{po.subtotal.toFixed(2)}</td>
+                                                <td className="p-4 text-yellow-400">{settings.currency}{po.shippingExpense.toFixed(2)}</td>
+                                                <td className="p-4 font-bold text-green-400">{settings.currency}{po.totalCost.toFixed(2)}</td>
+                                                <td className="p-4">{settings.currency}{avgStoreCost.toFixed(2)}</td>
+                                                <td className="p-4">{settings.currency}{avgStorePrice.toFixed(2)}</td>
                                                 <td className="p-4">
                                                     <span className={`px-2 py-1 rounded text-xs font-bold ${
                                                         po.status === PurchaseOrderStatus.RECEIVED ? 'bg-green-900 text-green-400' :
@@ -1041,8 +1052,7 @@ export const SuperAdmin = () => {
                                                         {po.status}
                                                     </span>
                                                 </td>
-                                                <td className="p-4">{po.createdByName}</td>
-                                                <td className="p-4 text-right flex justify-end gap-2 items-center">
+                                                <td className="p-4 text-right flex justify-end gap-2 items-center flex-wrap">
                                                     {!po.convertedToInventory && (
                                                         <button onClick={() => handleConvertPurchaseToInventory(po)} title="Convert to Inventory" className="text-green-400 hover:text-green-300 text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600">
                                                             <Icons.Check size={14} /> Convert
@@ -1051,11 +1061,27 @@ export const SuperAdmin = () => {
                                                     {po.convertedToInventory && (
                                                         <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">Converted</span>
                                                     )}
+                                                    <button onClick={() => setSelectedPurchaseOrderForReport(po)} title="Print" className="text-blue-400 hover:text-blue-300 text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600" style={{ display: selectedPurchaseOrderForReport?.id === po.id ? 'none' : 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        🖨️ Print
+                                                    </button>
+                                                    <button onClick={() => setSelectedPurchaseOrderForReport(po)} title="Download PDF" className="text-green-400 hover:text-green-300 text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600" style={{ display: selectedPurchaseOrderForReport?.id === po.id ? 'none' : 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        📥 PDF
+                                                    </button>
+                                                    {selectedPurchaseOrderForReport?.id === po.id && (
+                                                        <div className="flex gap-1">
+                                                            <PurchaseOrderReport 
+                                                              purchaseOrder={po}
+                                                              currency={settings.currency}
+                                                              storeName={settings.storeName || 'AlkanchiPay Store'}
+                                                            />
+                                                        </div>
+                                                    )}
                                                     <button onClick={() => { setEditingPurchaseOrder(po); setIsPurchaseOrderModalOpen(true); }} className="text-blue-400 hover:text-blue-300"><Icons.Settings size={16} /></button>
                                                     <button onClick={() => { if(window.confirm('Delete this purchase order?')) deletePurchaseOrder(po.id); }} className="text-red-400 hover:text-red-300"><Icons.Delete size={16} /></button>
                                                 </td>
                                             </tr>
-                                        ))}
+                                          );
+                                        })}
                                     </tbody>
                                 </table>
                             )}

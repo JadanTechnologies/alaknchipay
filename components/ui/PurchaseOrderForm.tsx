@@ -28,7 +28,9 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
     modelNumber: '',
     quantity: 0,
     costPrice: 0,
-    totalCostPrice: 0
+    totalCostPrice: 0,
+    storeCostPrice: 0,
+    storeSellingPrice: 0
   });
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
@@ -38,7 +40,7 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
 
   const handleAddItem = () => {
     if (!currentItem.serialNumber || !currentItem.itemName || !currentItem.modelNumber || 
-        !currentItem.quantity || !currentItem.costPrice) {
+        !currentItem.quantity || !currentItem.costPrice || !currentItem.storeCostPrice || !currentItem.storeSellingPrice) {
       alert('Please fill all item fields');
       return;
     }
@@ -50,7 +52,9 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
       modelNumber: currentItem.modelNumber,
       quantity: currentItem.quantity,
       costPrice: currentItem.costPrice,
-      totalCostPrice
+      totalCostPrice,
+      storeCostPrice: currentItem.storeCostPrice,
+      storeSellingPrice: currentItem.storeSellingPrice
     };
 
     if (editingItemIndex !== null) {
@@ -71,7 +75,9 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
       modelNumber: '',
       quantity: 0,
       costPrice: 0,
-      totalCostPrice: 0
+      totalCostPrice: 0,
+      storeCostPrice: 0,
+      storeSellingPrice: 0
     });
   };
 
@@ -152,11 +158,29 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
             />
             <input
               type="number"
-              placeholder="Cost Price (per unit)"
+              placeholder="Cost Price (per unit from supplier)"
               min="0"
               step="0.01"
               value={currentItem.costPrice || 0}
               onChange={(e) => setCurrentItem({ ...currentItem, costPrice: parseFloat(e.target.value) || 0 })}
+              className="form-input"
+            />
+            <input
+              type="number"
+              placeholder="Store Cost Price"
+              min="0"
+              step="0.01"
+              value={currentItem.storeCostPrice || 0}
+              onChange={(e) => setCurrentItem({ ...currentItem, storeCostPrice: parseFloat(e.target.value) || 0 })}
+              className="form-input"
+            />
+            <input
+              type="number"
+              placeholder="Store Selling Price"
+              min="0"
+              step="0.01"
+              value={currentItem.storeSellingPrice || 0}
+              onChange={(e) => setCurrentItem({ ...currentItem, storeSellingPrice: parseFloat(e.target.value) || 0 })}
               className="form-input"
             />
             <button
@@ -181,6 +205,8 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
                   <th>Qty</th>
                   <th>Unit Cost</th>
                   <th>Total Cost</th>
+                  <th>Store Cost</th>
+                  <th>Store Selling</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -193,6 +219,8 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
                     <td>{item.quantity}</td>
                     <td>{currency}{item.costPrice.toFixed(2)}</td>
                     <td>{currency}{item.totalCostPrice.toFixed(2)}</td>
+                    <td>{currency}{item.storeCostPrice.toFixed(2)}</td>
+                    <td>{currency}{item.storeSellingPrice.toFixed(2)}</td>
                     <td className="actions">
                       <button
                         type="button"

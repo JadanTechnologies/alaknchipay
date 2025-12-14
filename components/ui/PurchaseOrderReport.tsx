@@ -15,6 +15,9 @@ export const PurchaseOrderReport: React.FC<PurchaseOrderReportProps> = ({
   storeName = 'AlkanchiPay Store'
 }) => {
   const generatePDF = () => {
+    // Sanitize currency symbol for PDF (replace Naira symbol with N as standard fonts don't support it)
+    const safeCurrency = currency === '₦' ? 'N' : currency;
+    
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -54,11 +57,11 @@ export const PurchaseOrderReport: React.FC<PurchaseOrderReportProps> = ({
       item.itemName,
       item.modelNumber,
       item.quantity.toString(),
-      `${currency}${item.costPrice.toFixed(2)}`,
-      `${currency}${item.totalCostPrice.toFixed(2)}`,
-      `${currency}${item.shippingExpense.toFixed(2)}`,
-      `${currency}${item.storeCostPrice.toFixed(2)}`,
-      `${currency}${item.storeSellingPrice.toFixed(2)}`,
+      `${safeCurrency}${item.costPrice.toFixed(2)}`,
+      `${safeCurrency}${item.totalCostPrice.toFixed(2)}`,
+      `${safeCurrency}${item.shippingExpense.toFixed(2)}`,
+      `${safeCurrency}${item.storeCostPrice.toFixed(2)}`,
+      `${safeCurrency}${item.storeSellingPrice.toFixed(2)}`,
     ]);
 
     autoTable(doc, {
@@ -115,12 +118,12 @@ export const PurchaseOrderReport: React.FC<PurchaseOrderReportProps> = ({
 
     // Summary lines
     const summaryLines = [
-      [`Subtotal (Supplier Cost):`, `${currency}${totalSupplierCost.toFixed(2)}`],
-      [`Total Shipping Expense:`, `${currency}${totalShipping.toFixed(2)}`],
-      [`TOTAL COST (All Items + Shipping):`, `${currency}${purchaseOrder.totalCost.toFixed(2)}`],
-      [`TOTAL STORE COST (All Items):`, `${currency}${totalStoreCost.toFixed(2)}`],
-      [`TOTAL STORE SELLING PRICE (All Items):`, `${currency}${totalStoreSellingPrice.toFixed(2)}`],
-      [`POTENTIAL PROFIT (Selling - Cost):`, `${currency}${potentialProfit.toFixed(2)}`],
+      [`Subtotal (Supplier Cost):`, `${safeCurrency}${totalSupplierCost.toFixed(2)}`],
+      [`Total Shipping Expense:`, `${safeCurrency}${totalShipping.toFixed(2)}`],
+      [`TOTAL COST (All Items + Shipping):`, `${safeCurrency}${purchaseOrder.totalCost.toFixed(2)}`],
+      [`TOTAL STORE COST (All Items):`, `${safeCurrency}${totalStoreCost.toFixed(2)}`],
+      [`TOTAL STORE SELLING PRICE (All Items):`, `${safeCurrency}${totalStoreSellingPrice.toFixed(2)}`],
+      [`POTENTIAL PROFIT (Selling - Cost):`, `${safeCurrency}${potentialProfit.toFixed(2)}`],
     ];
 
     let currentY = summaryY;

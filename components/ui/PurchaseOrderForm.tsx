@@ -111,6 +111,7 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
       createdByName: order?.createdByName || userName,
       items,
       subtotal,
+      shippingExpense: totalShipping,
       totalCost,
       status,
       notes: notes || undefined,

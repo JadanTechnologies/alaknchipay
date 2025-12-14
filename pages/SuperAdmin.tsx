@@ -1039,7 +1039,7 @@ export const SuperAdmin = () => {
                                                 <td className="p-4">{new Date(po.date).toLocaleDateString()}</td>
                                                 <td className="p-4 text-blue-400">{po.items.length} items ({totalStoreQuantity} units)</td>
                                                 <td className="p-4 font-bold text-white">{settings.currency}{po.subtotal.toFixed(2)}</td>
-                                                <td className="p-4 text-yellow-400">{settings.currency}{po.shippingExpense.toFixed(2)}</td>
+                                                <td className="p-4 text-yellow-400">{settings.currency}{(po.shippingExpense || 0).toFixed(2)}</td>
                                                 <td className="p-4 font-bold text-green-400">{settings.currency}{po.totalCost.toFixed(2)}</td>
                                                 <td className="p-4">{settings.currency}{avgStoreCost.toFixed(2)}</td>
                                                 <td className="p-4">{settings.currency}{avgStorePrice.toFixed(2)}</td>
@@ -1099,7 +1099,7 @@ export const SuperAdmin = () => {
                             </div>
                             <div>
                                 <p className="text-gray-400 text-xs font-bold">Shipping Expense</p>
-                                <p className="text-xl font-bold text-blue-400">{settings.currency}{filteredPurchaseOrders.reduce((sum, po) => sum + po.shippingExpense, 0).toFixed(2)}</p>
+                                <p className="text-xl font-bold text-blue-400">{settings.currency}{filteredPurchaseOrders.reduce((sum, po) => sum + (po.shippingExpense || 0), 0).toFixed(2)}</p>
                             </div>
                             <div>
                                 <p className="text-gray-400 text-xs font-bold">Converted to Inventory</p>

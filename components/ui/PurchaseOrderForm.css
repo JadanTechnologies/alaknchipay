@@ -3,23 +3,23 @@
   flex-direction: column;
   gap: 24px;
   padding: 20px;
-  background: #f8f9fa;
+  background: #1f2937;
   border-radius: 8px;
 }
 
 .form-section {
-  background: white;
+  background: #111827;
   padding: 16px;
   border-radius: 6px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #374151;
 }
 
 .form-section h3 {
   margin: 0 0 16px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
-  border-bottom: 2px solid #007bff;
+  color: #f3f4f6;
+  border-bottom: 2px solid #3b82f6;
   padding-bottom: 8px;
 }
 
@@ -54,7 +54,7 @@
 .form-group label {
   font-size: 12px;
   font-weight: 600;
-  color: #555;
+  color: #d1d5db;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -62,18 +62,20 @@
 .form-input,
 .form-input:focus {
   padding: 10px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid #4b5563;
   border-radius: 4px;
   font-size: 14px;
   font-family: inherit;
   transition: all 0.2s ease;
+  background-color: #374151;
+  color: #f3f4f6;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-  background-color: #f0f7ff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background-color: #1f2937;
 }
 
 textarea.form-input {
@@ -83,7 +85,7 @@ textarea.form-input {
 
 .btn-add-item {
   padding: 10px 16px;
-  background-color: #28a745;
+  background-color: #10b981;
   color: white;
   border: none;
   border-radius: 4px;
@@ -95,8 +97,8 @@ textarea.form-input {
 }
 
 .btn-add-item:hover {
-  background-color: #218838;
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  background-color: #059669;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
 .btn-add-item:active {
@@ -106,7 +108,7 @@ textarea.form-input {
 .items-table-wrapper {
   overflow-x: auto;
   margin-top: 16px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #374151;
   border-radius: 4px;
 }
 
@@ -117,20 +119,21 @@ textarea.form-input {
 }
 
 .items-table thead {
-  background-color: #f0f0f0;
+  background-color: #111827;
   font-weight: 600;
-  color: #333;
+  color: #f3f4f6;
 }
 
 .items-table th {
   padding: 12px;
   text-align: left;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid #374151;
 }
 
 .items-table td {
   padding: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #374151;
+  color: #e5e7eb;
 }
 
 .items-table tbody tr {
@@ -138,11 +141,11 @@ textarea.form-input {
 }
 
 .items-table tbody tr:hover {
-  background-color: #f9f9f9;
+  background-color: #1f2937;
 }
 
 .items-table tbody tr.editing {
-  background-color: #fff3cd;
+  background-color: #78350f;
 }
 
 .items-table td.actions {
@@ -154,9 +157,9 @@ textarea.form-input {
 .btn-icon {
   width: 32px;
   height: 32px;
-  border: 1px solid #ddd;
+  border: 1px solid #4b5563;
   border-radius: 4px;
-  background-color: white;
+  background-color: #374151;
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
@@ -167,41 +170,41 @@ textarea.form-input {
 }
 
 .btn-icon:hover {
-  background-color: #f0f0f0;
+  background-color: #4b5563;
 }
 
 .btn-icon.edit {
-  color: #007bff;
+  color: #3b82f6;
 }
 
 .btn-icon.edit:hover {
-  border-color: #007bff;
-  background-color: #e7f3ff;
+  border-color: #3b82f6;
+  background-color: #1e3a8a;
 }
 
 .btn-icon.delete {
-  color: #dc3545;
+  color: #ef4444;
 }
 
 .btn-icon.delete:hover {
-  border-color: #dc3545;
-  background-color: #ffe7e7;
+  border-color: #ef4444;
+  background-color: #7f1d1d;
 }
 
 .summary-value {
   padding: 10px 12px;
-  background-color: #f9f9f9;
-  border: 1px solid #e0e0e0;
+  background-color: #374151;
+  border: 1px solid #4b5563;
   border-radius: 4px;
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: #f3f4f6;
 }
 
 .summary-value.total {
-  background-color: #e7f3ff;
-  border-color: #007bff;
-  color: #007bff;
+  background-color: #1e3a8a;
+  border-color: #3b82f6;
+  color: #93c5fd;
   font-size: 16px;
 }
 
@@ -224,22 +227,22 @@ textarea.form-input {
 }
 
 .btn-cancel {
-  background-color: #f0f0f0;
-  color: #555;
+  background-color: #4b5563;
+  color: #f3f4f6;
 }
 
 .btn-cancel:hover {
-  background-color: #e0e0e0;
+  background-color: #6b7280;
 }
 
 .btn-submit {
-  background-color: #007bff;
+  background-color: #3b82f6;
   color: white;
 }
 
 .btn-submit:hover {
-  background-color: #0056b3;
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+  background-color: #1d4ed8;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 .btn-submit:active {

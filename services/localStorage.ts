@@ -1,5 +1,5 @@
 // Local Storage Service for AlkanchiPay
-import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseCategory, Branch, Notification, Customer } from '../types';
+import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseCategory, Branch, Notification, Customer, PurchaseOrder } from '../types';
 import { nanoid } from 'nanoid';
 
 const STORAGE_KEYS = {
@@ -13,10 +13,12 @@ const STORAGE_KEYS = {
   BRANCHES: 'alkanchipay_branches',
   SETTINGS: 'alkanchipay_settings',
   CUSTOMERS: 'alkanchipay_customers',
+  DELETED_CUSTOMERS: 'alkanchipay_deleted_customers',
   ROLES: 'alkanchipay_roles',
   PERMISSIONS: 'alkanchipay_permissions',
   EXPENSES: 'alkanchipay_expenses',
-  ACTIVITY_LOGS: 'alkanchipay_activity_logs'
+  ACTIVITY_LOGS: 'alkanchipay_activity_logs',
+  PURCHASE_ORDERS: 'alkanchipay_purchase_orders'
 };
 
 // Helper functions
@@ -133,6 +135,9 @@ export const initializeLocalStorage = (): void => {
   if (!localStorage.getItem(STORAGE_KEYS.CUSTOMERS)) {
     setItem(STORAGE_KEYS.CUSTOMERS, []);
   }
+  if (!localStorage.getItem(STORAGE_KEYS.DELETED_CUSTOMERS)) {
+    setItem(STORAGE_KEYS.DELETED_CUSTOMERS, []);
+  }
   if (!localStorage.getItem(STORAGE_KEYS.DELETED_TRANSACTIONS)) {
     setItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []);
   }
@@ -141,6 +146,11 @@ export const initializeLocalStorage = (): void => {
   }
   if (!localStorage.getItem(STORAGE_KEYS.ACTIVITY_LOGS)) {
     setItem(STORAGE_KEYS.ACTIVITY_LOGS, []);
+  }
+
+  // Initialize purchase orders
+  if (!localStorage.getItem(STORAGE_KEYS.PURCHASE_ORDERS)) {
+    setItem(STORAGE_KEYS.PURCHASE_ORDERS, []);
   }
 };
 
@@ -504,6 +514,42 @@ export const ActivityLogs = {
   }
 };
 
+// Purchase Orders Operations
+export const PurchaseOrders = {
+  getAll: (): PurchaseOrder[] => getItem(STORAGE_KEYS.PURCHASE_ORDERS, []),
+
+  getById: (id: string): PurchaseOrder | null => {
+    const orders = getItem(STORAGE_KEYS.PURCHASE_ORDERS, []);
+    return orders.find(o => o.id === id) || null;
+  },
+
+  create: (order: Omit<PurchaseOrder, 'id'>): PurchaseOrder => {
+    const newOrder = { ...order, id: nanoid() };
+    const orders = getItem(STORAGE_KEYS.PURCHASE_ORDERS, []);
+    setItem(STORAGE_KEYS.PURCHASE_ORDERS, [...orders, newOrder]);
+    return newOrder;
+  },
+
+  update: (id: string, updates: Partial<PurchaseOrder>): PurchaseOrder | null => {
+    const orders = getItem(STORAGE_KEYS.PURCHASE_ORDERS, []);
+    const index = orders.findIndex(o => o.id === id);
+    if (index === -1) return null;
+
+    const updated = { ...orders[index], ...updates };
+    orders[index] = updated;
+    setItem(STORAGE_KEYS.PURCHASE_ORDERS, orders);
+    return updated;
+  },
+
+  delete: (id: string): boolean => {
+    const orders = getItem(STORAGE_KEYS.PURCHASE_ORDERS, []);
+    const filtered = orders.filter(o => o.id !== id);
+    if (filtered.length === orders.length) return false;
+    setItem(STORAGE_KEYS.PURCHASE_ORDERS, filtered);
+    return true;
+  }
+};
+
 // Backup/Restore
 export const Backup = {
   create: (): string => {
@@ -520,7 +566,8 @@ export const Backup = {
         roles: Roles.getAll(),
         settings: Settings.get(),
         customers: getItem(STORAGE_KEYS.CUSTOMERS, []),
-        activityLogs: ActivityLogs.getAll()
+        activityLogs: ActivityLogs.getAll(),
+        purchaseOrders: PurchaseOrders.getAll()
       }
     };
     return JSON.stringify(backup);
@@ -542,6 +589,7 @@ export const Backup = {
       setItem(STORAGE_KEYS.SETTINGS, backup.data.settings || {});
       setItem(STORAGE_KEYS.ACTIVITY_LOGS, backup.data.activityLogs || []);
       setItem(STORAGE_KEYS.CUSTOMERS, backup.data.customers || []);
+      setItem(STORAGE_KEYS.PURCHASE_ORDERS, backup.data.purchaseOrders || []);
 
       return true;
     } catch (e) {

@@ -71,6 +71,7 @@ import {
 export const Icons = {
   Dashboard: LayoutDashboard,
   POS: ShoppingCart,
+  ShoppingCart: ShoppingCart,
   Inventory: Package,
   Users: Users,
   Settings: Settings,

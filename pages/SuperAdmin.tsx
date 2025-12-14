@@ -2,9 +2,10 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Icons } from '../components/ui/Icons';
-import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus, ExpenseCategory, UserRole, Permission } from '../types';
+import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus, ExpenseCategory, UserRole, Permission, PurchaseOrder, PurchaseOrderStatus } from '../types';
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
+import { PurchaseOrderForm } from '../components/ui/PurchaseOrderForm';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -21,6 +22,7 @@ export const SuperAdmin = () => {
         createBackup, restoreBackup, addNotification,
         roles, permissions, addRole, updateRole, deleteRole, // New
         updateUserPassword,
+        purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder,
         deletedTransactions, getDeletedTransactions, restoreTransaction, purgeTransaction, deleteTransaction
     } = useStore();
 
@@ -51,8 +53,13 @@ export const SuperAdmin = () => {
     // Branch Inventory Details Modal
     const [selectedBranchForDetails, setSelectedBranchForDetails] = useState<Branch | null>(null);
 
+    // Purchase Orders Modal
+    const [isPurchaseOrderModalOpen, setIsPurchaseOrderModalOpen] = useState(false);
+    const [editingPurchaseOrder, setEditingPurchaseOrder] = useState<PurchaseOrder | null>(null);
+    const [purchaseOrderFilterStatus, setPurchaseOrderFilterStatus] = useState<string>('ALL');
+
     // View & Nav State
-    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'transactions' | 'settings' | 'inventory' | 'profile' | 'activity' | 'expenses' | 'recycleBin'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'transactions' | 'settings' | 'inventory' | 'profile' | 'activity' | 'expenses' | 'purchases' | 'recycleBin'>('overview');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     // Filters
@@ -91,6 +98,11 @@ export const SuperAdmin = () => {
 
     const filteredExpenses = expenses.filter(e => {
         const matchStatus = expenseFilterStatus === 'ALL' || e.status === expenseFilterStatus;
+        return matchStatus;
+    });
+
+    const filteredPurchaseOrders = purchaseOrders.filter(po => {
+        const matchStatus = purchaseOrderFilterStatus === 'ALL' || po.status === purchaseOrderFilterStatus;
         return matchStatus;
     });
 
@@ -340,6 +352,49 @@ export const SuperAdmin = () => {
         updateUser({ ...user, name: formData.get('name') as string, username: formData.get('username') as string });
         setIsEditingProfile(false);
     };
+
+    // Purchase Order Handlers
+    const handleSavePurchaseOrder = (orderData: Omit<PurchaseOrder, 'id'>) => {
+        if (editingPurchaseOrder) {
+            updatePurchaseOrder({ ...orderData, id: editingPurchaseOrder.id });
+        } else {
+            addPurchaseOrder(orderData);
+        }
+        setIsPurchaseOrderModalOpen(false);
+        setEditingPurchaseOrder(null);
+    };
+
+    const handleConvertPurchaseToInventory = (po: PurchaseOrder) => {
+        if (po.convertedToInventory) {
+            addNotification('This purchase order has already been converted to inventory', 'info');
+            return;
+        }
+
+        // Convert each item to a product
+        po.items.forEach(item => {
+            const product: Omit<Product, 'id'> = {
+                sku: `PO-${po.id.substring(0, 8)}-${item.serialNumber}`,
+                name: item.itemName,
+                category: 'Purchased Items',
+                costPrice: item.costPrice,
+                sellingPrice: item.costPrice * 1.3, // Default 30% markup
+                stock: item.quantity,
+                minStockAlert: Math.ceil(item.quantity * 0.2),
+                updatedAt: new Date().toISOString()
+            };
+            addProduct(product);
+        });
+
+        // Mark purchase order as converted
+        updatePurchaseOrder({
+            ...po,
+            convertedToInventory: true,
+            convertedAt: new Date().toISOString()
+        });
+
+        addNotification(`Purchase order converted to inventory. ${po.items.length} product(s) added.`, 'success');
+    };
+
     const handleAddCategory = (e: React.FormEvent) => {
         e.preventDefault();
         if (newCategoryName.trim()) { addCategory(newCategoryName.trim()); setNewCategoryName(''); }
@@ -402,6 +457,7 @@ export const SuperAdmin = () => {
                         { id: 'branches', icon: Icons.Store, label: 'Branches' },
                         { id: 'users', icon: Icons.Users, label: 'Users' },
                         { id: 'inventory', icon: Icons.Inventory, label: 'Global Inventory' },
+                        { id: 'purchases', icon: Icons.ShoppingCart, label: 'Purchases' },
                         { id: 'transactions', icon: Icons.Receipt, label: 'Transactions' },
                         { id: 'expenses', icon: Icons.Expenses, label: 'Expenses' },
                         { id: 'activity', icon: Icons.Activity, label: 'Activity Logs' },
@@ -915,6 +971,115 @@ export const SuperAdmin = () => {
                         ) : (
                             <button onClick={() => setIsEditingProfile(true)} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold">Edit Profile</button>
                         )}
+                    </div>
+                )}
+
+                {activeTab === 'purchases' && (
+                    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
+                        <div className="p-6 border-b border-gray-700 flex flex-wrap gap-4 items-center justify-between">
+                            <div className="flex gap-4 items-center">
+                                <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={purchaseOrderFilterStatus} onChange={e => setPurchaseOrderFilterStatus(e.target.value)}>
+                                    <option value="ALL">All Orders</option>
+                                    <option value={PurchaseOrderStatus.PENDING}>Pending</option>
+                                    <option value={PurchaseOrderStatus.RECEIVED}>Received</option>
+                                    <option value={PurchaseOrderStatus.CANCELLED}>Cancelled</option>
+                                </select>
+                                <button onClick={() => setPurchaseOrderFilterStatus('ALL')} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"><Icons.RotateCcw size={14} /> Clear</button>
+                            </div>
+                            <button onClick={() => { setEditingPurchaseOrder(null); setIsPurchaseOrderModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> New Purchase Order</button>
+                        </div>
+
+                        {isPurchaseOrderModalOpen && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+                                <div className="bg-gray-900 rounded-xl p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto my-8">
+                                    <h2 className="text-2xl font-bold text-white mb-6">{editingPurchaseOrder ? 'Edit Purchase Order' : 'Create New Purchase Order'}</h2>
+                                    <PurchaseOrderForm
+                                        order={editingPurchaseOrder}
+                                        onSubmit={handleSavePurchaseOrder}
+                                        onCancel={() => { setIsPurchaseOrderModalOpen(false); setEditingPurchaseOrder(null); }}
+                                        userName={user?.name || 'Super Admin'}
+                                        currency={settings.currency}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex-1 overflow-auto">
+                            {filteredPurchaseOrders.length === 0 ? (
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    <div className="text-center">
+                                        <Icons.ShoppingCart size={48} className="mx-auto mb-4 opacity-50" />
+                                        <p>No purchase orders found</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
+                                        <tr>
+                                            <th className="p-4">Date</th>
+                                            <th className="p-4">Items</th>
+                                            <th className="p-4">Total Cost</th>
+                                            <th className="p-4">Shipping</th>
+                                            <th className="p-4">Status</th>
+                                            <th className="p-4">Created By</th>
+                                            <th className="p-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-700 text-gray-200">
+                                        {filteredPurchaseOrders.map(po => (
+                                            <tr key={po.id} className="hover:bg-gray-700/50">
+                                                <td className="p-4">{new Date(po.date).toLocaleDateString()}</td>
+                                                <td className="p-4 text-blue-400">{po.items.length} items</td>
+                                                <td className="p-4 font-bold text-white">{settings.currency}{po.totalCost.toFixed(2)}</td>
+                                                <td className="p-4">{settings.currency}{po.shippingExpense.toFixed(2)}</td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                        po.status === PurchaseOrderStatus.RECEIVED ? 'bg-green-900 text-green-400' :
+                                                        po.status === PurchaseOrderStatus.PENDING ? 'bg-yellow-900 text-yellow-400' :
+                                                        'bg-red-900 text-red-400'
+                                                    }`}>
+                                                        {po.status}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">{po.createdByName}</td>
+                                                <td className="p-4 text-right flex justify-end gap-2 items-center">
+                                                    {!po.convertedToInventory && (
+                                                        <button onClick={() => handleConvertPurchaseToInventory(po)} title="Convert to Inventory" className="text-green-400 hover:text-green-300 text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600">
+                                                            <Icons.Check size={14} /> Convert
+                                                        </button>
+                                                    )}
+                                                    {po.convertedToInventory && (
+                                                        <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">Converted</span>
+                                                    )}
+                                                    <button onClick={() => { setEditingPurchaseOrder(po); setIsPurchaseOrderModalOpen(true); }} className="text-blue-400 hover:text-blue-300"><Icons.Settings size={16} /></button>
+                                                    <button onClick={() => { if(window.confirm('Delete this purchase order?')) deletePurchaseOrder(po.id); }} className="text-red-400 hover:text-red-300"><Icons.Delete size={16} /></button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+
+                        {/* Purchase Orders Summary */}
+                        <div className="p-4 border-t border-gray-700 bg-gray-900/50 grid grid-cols-4 gap-4 text-sm">
+                            <div>
+                                <p className="text-gray-400 text-xs font-bold">Total Orders</p>
+                                <p className="text-xl font-bold text-white">{filteredPurchaseOrders.length}</p>
+                            </div>
+                            <div>
+                                <p className="text-gray-400 text-xs font-bold">Total Cost</p>
+                                <p className="text-xl font-bold text-green-400">{settings.currency}{filteredPurchaseOrders.reduce((sum, po) => sum + po.totalCost, 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-gray-400 text-xs font-bold">Shipping Expense</p>
+                                <p className="text-xl font-bold text-blue-400">{settings.currency}{filteredPurchaseOrders.reduce((sum, po) => sum + po.shippingExpense, 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-gray-400 text-xs font-bold">Converted to Inventory</p>
+                                <p className="text-xl font-bold text-yellow-400">{filteredPurchaseOrders.filter(po => po.convertedToInventory).length}</p>
+                            </div>
+                        </div>
                     </div>
                 )}
 

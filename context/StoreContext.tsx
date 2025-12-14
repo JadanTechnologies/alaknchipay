@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod, Customer } from '../types';
+import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod, Customer, PurchaseOrder } from '../types';
 import * as LocalStorage from '../services/localStorage';
 import { useAuth } from './AuthContext';
 import { nanoid } from 'nanoid';
@@ -22,6 +22,7 @@ interface StoreContextType {
   transactions: Transaction[];
   customers: Customer[];
   deletedTransactions: Transaction[];
+  purchaseOrders: PurchaseOrder[];
   settings: StoreSettings;
   branches: Branch[];
   categories: Category[];
@@ -57,6 +58,9 @@ interface StoreContextType {
   addCustomer: (c: Partial<Customer>) => Customer;
   updateCustomer: (c: Customer) => void;
   deleteCustomer: (id: string) => void;
+  addPurchaseOrder: (order: Omit<PurchaseOrder, 'id'>) => void;
+  updatePurchaseOrder: (order: PurchaseOrder) => void;
+  deletePurchaseOrder: (id: string) => void;
   createBackup: (storeId?: string) => string;
   restoreBackup: (jsonData: string) => boolean;
   uploadFile: (file: File, path?: string) => Promise<string | null>;
@@ -74,6 +78,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [deletedTransactions, setDeletedTransactions] = useState<Transaction[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [settings, setSettings] = useState<StoreSettings>({
     name: 'AlkanchiPay POS',
     currency: '₦',
@@ -107,6 +112,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTransactions(LocalStorage.Transactions.getAll());
       setDeletedTransactions(LocalStorage.Transactions.getDeletedAll());
       setCustomers(LocalStorage.Customers.getAll());
+      setPurchaseOrders(LocalStorage.PurchaseOrders.getAll());
       setSettings(LocalStorage.Settings.get());
       setBranches(LocalStorage.Branches.getAll());
       setCategories(LocalStorage.Categories.getAll());
@@ -556,6 +562,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Purchase Orders
+  const addPurchaseOrder = (order: Omit<PurchaseOrder, 'id'>) => {
+    const newOrder = LocalStorage.PurchaseOrders.create(order);
+    setPurchaseOrders(prev => [...prev, newOrder]);
+    addNotification('Purchase order created successfully', 'success');
+  };
+
+  const updatePurchaseOrder = (order: PurchaseOrder) => {
+    const updated = LocalStorage.PurchaseOrders.update(order.id, order);
+    if (updated) {
+      setPurchaseOrders(prev => prev.map(p => p.id === order.id ? order : p));
+      addNotification('Purchase order updated successfully', 'success');
+    }
+  };
+
+  const deletePurchaseOrder = (id: string) => {
+    if (LocalStorage.PurchaseOrders.delete(id)) {
+      setPurchaseOrders(prev => prev.filter(p => p.id !== id));
+      addNotification('Purchase order deleted successfully', 'success');
+    }
+  };
+
   return (
     <StoreContext.Provider value={{
       user,
@@ -580,6 +608,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       notifications,
       activityLogs,
       expenses,
+      purchaseOrders,
       login,
       logout,
       addProduct,
@@ -610,6 +639,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addExpense,
       updateExpense,
       deleteExpense,
+      addPurchaseOrder,
+      updatePurchaseOrder,
+      deletePurchaseOrder,
       createBackup,
       restoreBackup,
       uploadFile

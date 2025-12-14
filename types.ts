@@ -212,3 +212,35 @@ export interface ActivityLog {
   userRole: string;
   timestamp: string;
 }
+
+export enum PurchaseOrderStatus {
+  PENDING = 'PENDING',
+  RECEIVED = 'RECEIVED',
+  CANCELLED = 'CANCELLED'
+}
+
+export interface PurchaseOrderItem {
+  serialNumber: string;
+  itemName: string;
+  modelNumber: string;
+  quantity: number;
+  costPrice: number; // Cost per unit
+  totalCostPrice: number; // costPrice * quantity (auto-calculated)
+}
+
+export interface PurchaseOrder {
+  id: string;
+  date: string; // ISO string
+  createdBy: string; // User ID of super admin
+  createdByName: string;
+  storeId?: string;
+  items: PurchaseOrderItem[];
+  subtotal: number; // Sum of all totalCostPrice
+  shippingExpense: number; // Shipping/transport cost from supplier
+  totalCost: number; // subtotal + shippingExpense
+  sellingPrice?: number; // Markup for selling
+  status: PurchaseOrderStatus;
+  notes?: string;
+  convertedToInventory?: boolean; // Whether items have been added to inventory
+  convertedAt?: string; // When items were added to inventory
+}

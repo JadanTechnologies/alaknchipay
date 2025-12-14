@@ -225,6 +225,7 @@ export interface PurchaseOrderItem {
   modelNumber: string;
   quantity: number;
   costPrice: number; // Cost per unit from supplier
+  shippingExpense: number; // Shipping cost for this item
   totalCostPrice: number; // costPrice * quantity (auto-calculated)
   storeCostPrice: number; // Cost price to store in inventory
   storeSellingPrice: number; // Selling price to store in inventory
@@ -234,12 +235,12 @@ export interface PurchaseOrder {
   id: string;
   date: string; // ISO string
   createdBy: string; // User ID of super admin
-  createdByName: string;
+  createdByName:string;
   storeId?: string;
   items: PurchaseOrderItem[];
   subtotal: number; // Sum of all totalCostPrice
-  shippingExpense: number; // Shipping/transport cost from supplier
-  totalCost: number; // subtotal + shippingExpense
+  shippingExpense?: number; // Shipping/transport cost from supplier - now optional
+  totalCost: number; // subtotal + total shipping
   sellingPrice?: number; // Markup for selling
   status: PurchaseOrderStatus;
   notes?: string;

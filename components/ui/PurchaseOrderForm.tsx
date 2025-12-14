@@ -19,7 +19,6 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
   currency
 }) => {
   const [items, setItems] = useState<PurchaseOrderItem[]>(order?.items || []);
-  const [shippingExpense, setShippingExpense] = useState(order?.shippingExpense || 0);
   const [notes, setNotes] = useState(order?.notes || '');
   const [status, setStatus] = useState<PurchaseOrderStatus>(order?.status || PurchaseOrderStatus.PENDING);
   const [currentItem, setCurrentItem] = useState<Partial<PurchaseOrderItem>>({
@@ -28,6 +27,7 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
     modelNumber: '',
     quantity: 0,
     costPrice: 0,
+    shippingExpense: 0,
     totalCostPrice: 0,
     storeCostPrice: 0,
     storeSellingPrice: 0
@@ -36,7 +36,8 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
 
   // Calculate totals
   const subtotal = items.reduce((sum, item) => sum + item.totalCostPrice, 0);
-  const totalCost = subtotal + shippingExpense;
+  const totalShipping = items.reduce((sum, item) => sum + item.shippingExpense, 0);
+  const totalCost = subtotal + totalShipping;
 
   const handleAddItem = () => {
     if (!currentItem.serialNumber || !currentItem.itemName || !currentItem.modelNumber || 
@@ -52,6 +53,7 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
       modelNumber: currentItem.modelNumber,
       quantity: currentItem.quantity,
       costPrice: currentItem.costPrice,
+      shippingExpense: currentItem.shippingExpense || 0,
       totalCostPrice,
       storeCostPrice: currentItem.storeCostPrice,
       storeSellingPrice: currentItem.storeSellingPrice
@@ -75,6 +77,7 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
       modelNumber: '',
       quantity: 0,
       costPrice: 0,
+      shippingExpense: 0,
       totalCostPrice: 0,
       storeCostPrice: 0,
       storeSellingPrice: 0
@@ -98,13 +101,16 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
       return;
     }
 
+    const subtotal = items.reduce((sum, item) => sum + item.totalCostPrice, 0);
+    const totalShipping = items.reduce((sum, item) => sum + item.shippingExpense, 0);
+    const totalCost = subtotal + totalShipping;
+
     const purchaseOrder: Omit<PurchaseOrder, 'id'> = {
       date: order?.date || new Date().toISOString(),
       createdBy: order?.createdBy || 'system',
       createdByName: order?.createdByName || userName,
       items,
       subtotal,
-      shippingExpense,
       totalCost,
       status,
       notes: notes || undefined,
@@ -181,6 +187,18 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
               />
             </div>
             <div className="form-group">
+              <label htmlFor="shippingExpense">Shipping Expense (per item)</label>
+              <input
+                id="shippingExpense"
+                type="number"
+                min="0"
+                step="0.01"
+                value={currentItem.shippingExpense || 0}
+                onChange={(e) => setCurrentItem({ ...currentItem, shippingExpense: parseFloat(e.target.value) || 0 })}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
               <label htmlFor="storeCostPrice">Store Cost Price</label>
               <input
                 id="storeCostPrice"
@@ -226,6 +244,7 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
                   <th>Qty</th>
                   <th>Unit Cost</th>
                   <th>Total Cost</th>
+                  <th>Shipping</th>
                   <th>Store Cost</th>
                   <th>Store Selling</th>
                   <th>Actions</th>
@@ -240,6 +259,7 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
                     <td>{item.quantity}</td>
                     <td>{currency}{item.costPrice.toFixed(2)}</td>
                     <td>{currency}{item.totalCostPrice.toFixed(2)}</td>
+                    <td>{currency}{item.shippingExpense.toFixed(2)}</td>
                     <td>{currency}{item.storeCostPrice.toFixed(2)}</td>
                     <td>{currency}{item.storeSellingPrice.toFixed(2)}</td>
                     <td className="actions">
@@ -278,17 +298,8 @@ export const PurchaseOrderForm: React.FC<PurchaseOrderFormProps> = ({
           </div>
 
           <div className="form-group">
-            <label htmlFor="shipping">Shipping Expense (from China/Supplier)</label>
-            <input
-              type="number"
-              id="shipping"
-              placeholder="Shipping/Transport Cost"
-              min="0"
-              step="0.01"
-              value={shippingExpense}
-              onChange={(e) => setShippingExpense(parseFloat(e.target.value) || 0)}
-              className="form-input"
-            />
+            <label>Total Shipping Expense</label>
+            <div className="summary-value">{currency}{totalShipping.toFixed(2)}</div>
           </div>
 
           <div className="form-group">

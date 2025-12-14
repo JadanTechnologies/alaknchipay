@@ -56,13 +56,14 @@ export const PurchaseOrderReport: React.FC<PurchaseOrderReportProps> = ({
       item.quantity.toString(),
       `${currency}${item.costPrice.toFixed(2)}`,
       `${currency}${item.totalCostPrice.toFixed(2)}`,
+      `${currency}${item.shippingExpense.toFixed(2)}`,
       `${currency}${item.storeCostPrice.toFixed(2)}`,
       `${currency}${item.storeSellingPrice.toFixed(2)}`,
     ]);
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['S/N', 'Item Name', 'Model', 'Qty', 'Unit Cost', 'Total Cost', 'Store Cost', 'Store Price']],
+      head: [['S/N', 'Item Name', 'Model', 'Qty', 'Unit Cost', 'Total Cost', 'Shipping', 'Store Cost', 'Store Price']],
       body: itemsData,
       headStyles: {
         fillColor: primaryColor,
@@ -87,7 +88,8 @@ export const PurchaseOrderReport: React.FC<PurchaseOrderReportProps> = ({
         4: { halign: 'right', cellWidth: 22 },
         5: { halign: 'right', cellWidth: 25 },
         6: { halign: 'right', cellWidth: 22 },
-        7: { halign: 'right', cellWidth: 25 }
+        7: { halign: 'right', cellWidth: 22 },
+        8: { halign: 'right', cellWidth: 25 }
       }
     });
 
@@ -106,6 +108,7 @@ export const PurchaseOrderReport: React.FC<PurchaseOrderReportProps> = ({
 
     // Calculate totals
     const totalSupplierCost = purchaseOrder.items.reduce((sum, item) => sum + item.totalCostPrice, 0);
+    const totalShipping = purchaseOrder.items.reduce((sum, item) => sum + item.shippingExpense, 0);
     const totalStoreCost = purchaseOrder.items.reduce((sum, item) => sum + (item.storeCostPrice * item.quantity), 0);
     const totalStoreSellingPrice = purchaseOrder.items.reduce((sum, item) => sum + (item.storeSellingPrice * item.quantity), 0);
     const potentialProfit = totalStoreSellingPrice - totalStoreCost;
@@ -113,7 +116,7 @@ export const PurchaseOrderReport: React.FC<PurchaseOrderReportProps> = ({
     // Summary lines
     const summaryLines = [
       [`Subtotal (Supplier Cost):`, `${currency}${totalSupplierCost.toFixed(2)}`],
-      [`Shipping Expense:`, `${currency}${purchaseOrder.shippingExpense.toFixed(2)}`],
+      [`Total Shipping Expense:`, `${currency}${totalShipping.toFixed(2)}`],
       [`TOTAL COST (All Items + Shipping):`, `${currency}${purchaseOrder.totalCost.toFixed(2)}`],
       [`TOTAL STORE COST (All Items):`, `${currency}${totalStoreCost.toFixed(2)}`],
       [`TOTAL STORE SELLING PRICE (All Items):`, `${currency}${totalStoreSellingPrice.toFixed(2)}`],

@@ -684,11 +684,12 @@ export const SuperAdmin = () => {
                                 }).map(b => {
                                     const metrics = getBranchMetrics(b.id);
                                     const financials = branchFinancials.find(f => f.branch.id === b.id);
+                                    const manager = users.find(u => u.id === b.managerId);
                                     return (
                                         <tr key={b.id} className="hover:bg-gray-700/50 cursor-pointer" onClick={() => setSelectedBranchForDetails(b)}>
                                             <td className="p-4 font-bold text-white">{b.name}</td>
                                             <td className="p-4 text-gray-400">{b.address}</td>
-                                            <td className="p-4 text-blue-400">{/* Manager removed */} - </td>
+                                            <td className="p-4 text-blue-400">{manager?.name || 'Unassigned'}</td>
                                             <td className="p-4 text-white">
                                                 <div className="text-xs">Cost: {settings.currency}{metrics.totalCost.toFixed(2)}</div>
                                                 <div className="text-xs text-green-400">Sales: {settings.currency}{metrics.totalSales.toFixed(2)}</div>

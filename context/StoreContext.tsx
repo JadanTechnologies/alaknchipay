@@ -652,7 +652,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           storeId: transfer.toBranchId,
           updatedAt: new Date().toISOString()
         };
-        LocalStorage.Products.add(newProduct);
+        LocalStorage.Products.create(newProduct);
         setProducts(prev => [...prev, newProduct]);
       }
     });
@@ -684,6 +684,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     LocalStorage.ProductTransfers.delete(id);
     setProductTransfers(prev => prev.filter(t => t.id !== id));
     addNotification('Transfer deleted successfully', 'success');
+  };
+
+  // Activity Log Helper
+  const logActivity = (action: string, details: string, userId: string, userName: string, userRole: string) => {
+    const log = LocalStorage.ActivityLogs.add({
+      action,
+      details,
+      userId,
+      userName,
+      userRole,
+      timestamp: new Date().toISOString()
+    });
+    setActivityLogs(prev => [...prev, log]);
   };
 
   return (

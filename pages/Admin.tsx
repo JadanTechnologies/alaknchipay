@@ -9,17 +9,18 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const Admin = () => {
-    const { 
-    user, products: allProducts, transactions: allTransactions, 
-    addProduct, updateProduct, deleteProduct, settings, updateBranch, 
+    const {
+    user, products: allProducts, transactions: allTransactions,
+    addProduct, updateProduct, deleteProduct, settings, updateBranch,
     users, logout, branches, categories, addCategory, deleteCategory, updateUser,
     expenses, addExpense, updateExpense, updateTransaction, processRefund, expenseCategories,
     createBackup, restoreBackup, addNotification,
         deletedTransactions, getDeletedTransactions, restoreTransaction, purgeTransaction, deleteTransaction,
-        customers, addCustomer, updateCustomer, deleteCustomer
+        customers, addCustomer, updateCustomer, deleteCustomer,
+        productTransfers, approveProductTransfer, rejectProductTransfer
   } = useStore();
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'reports' | 'debts' | 'expenses' | 'settings' | 'profile' | 'returns' | 'recycleBin' | 'customers'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'reports' | 'debts' | 'expenses' | 'settings' | 'profile' | 'returns' | 'recycleBin' | 'customers' | 'transfers'>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [newCustomerName, setNewCustomerName] = useState('');
     const [newCustomerPhone, setNewCustomerPhone] = useState('');
@@ -59,6 +60,10 @@ export const Admin = () => {
   const [newExpenseReason, setNewExpenseReason] = useState('');
   const [newExpenseCategory, setNewExpenseCategory] = useState('');
   const [expenseSubTab, setExpenseSubTab] = useState<'pending' | 'history'>('pending');
+
+  // Transfer State
+  const [transferSubTab, setTransferSubTab] = useState<'pending' | 'history'>('pending');
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Return State
   const [returnInvoiceId, setReturnInvoiceId] = useState('');
@@ -162,6 +167,20 @@ export const Admin = () => {
 
   const handleReviewExpense = (exp: Expense, status: ExpenseStatus) => {
       updateExpense({ ...exp, status, approvedBy: user?.id });
+  };
+
+  const handleApproveTransfer = (transferId: string) => {
+      if (!user) return;
+      approveProductTransfer(transferId, user.id, user.name);
+  };
+
+  const handleRejectTransfer = (transferId: string) => {
+      if (!user || !rejectionReason.trim()) {
+          addNotification('Please provide a rejection reason', 'error');
+          return;
+      }
+      rejectProductTransfer(transferId, user.id, user.name, rejectionReason);
+      setRejectionReason('');
   };
   
   const handleAddDebtPayment = () => {
@@ -459,7 +478,7 @@ export const Admin = () => {
            </button>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-            {[{ id: 'dashboard', icon: Icons.Dashboard, label: 'Dashboard' }, { id: 'reports', icon: Icons.Reports, label: 'Reports & Analytics' }, { id: 'inventory', icon: Icons.Inventory, label: 'Branch Inventory' }, { id: 'debts', icon: Icons.Wallet, label: 'Debts & Deposits' }, { id: 'expenses', icon: Icons.Expenses, label: 'Expenses' }, { id: 'returns', icon: Icons.RotateCcw, label: 'Returns' }, { id: 'customers', icon: Icons.Users, label: 'Customers' }, { id: 'recycleBin', icon: Icons.Delete, label: 'Recycle Bin' }, { id: 'settings', icon: Icons.Settings, label: 'Branch Settings' }, { id: 'profile', icon: Icons.User, label: 'My Profile' }].map(item => (
+            {[{ id: 'dashboard', icon: Icons.Dashboard, label: 'Dashboard' }, { id: 'reports', icon: Icons.Reports, label: 'Reports & Analytics' }, { id: 'inventory', icon: Icons.Inventory, label: 'Branch Inventory' }, { id: 'transfers', icon: Icons.ArrowRight, label: 'Product Transfers' }, { id: 'debts', icon: Icons.Wallet, label: 'Debts & Deposits' }, { id: 'expenses', icon: Icons.Expenses, label: 'Expenses' }, { id: 'returns', icon: Icons.RotateCcw, label: 'Returns' }, { id: 'customers', icon: Icons.Users, label: 'Customers' }, { id: 'recycleBin', icon: Icons.Delete, label: 'Recycle Bin' }, { id: 'settings', icon: Icons.Settings, label: 'Branch Settings' }, { id: 'profile', icon: Icons.User, label: 'My Profile' }].map(item => (
                 <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition ${activeTab === item.id ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-700 text-gray-300'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                     <item.icon size={20} />{!isSidebarCollapsed && <span>{item.label}</span>}
                 </button>
@@ -768,7 +787,61 @@ export const Admin = () => {
                  )}
              </div>
          )}
-         
+
+         {activeTab === 'transfers' && (
+             <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+                 <div className="flex gap-4 mb-6 border-b border-gray-700 pb-2">
+                     <button onClick={()=>setTransferSubTab('pending')} className={`pb-2 font-bold ${transferSubTab==='pending'?'text-blue-400 border-b-2 border-blue-400':'text-gray-400'}`}>Pending Transfers</button>
+                     <button onClick={()=>setTransferSubTab('history')} className={`pb-2 font-bold ${transferSubTab==='history'?'text-blue-400 border-b-2 border-blue-400':'text-gray-400'}`}>Transfer History</button>
+                 </div>
+
+                 {transferSubTab === 'pending' && (
+                     <div className="space-y-4">
+                         {productTransfers.filter(t => t.toBranchId === user?.storeId && t.status === 'PENDING').map(transfer => (
+                             <div key={transfer.id} className="bg-gray-900 p-4 rounded-lg flex justify-between items-start border border-gray-700">
+                                 <div className="flex-1">
+                                     <p className="font-bold text-white">From: {transfer.fromBranchName || 'Super Admin'}</p>
+                                     <p className="text-sm text-gray-400">Date: {new Date(transfer.date).toLocaleDateString()}</p>
+                                     <p className="text-sm text-gray-400">ID: {transfer.id.substring(0,8)}</p>
+                                     <div className="mt-2">
+                                         <p className="text-sm font-bold text-gray-300">Items:</p>
+                                         {transfer.items.map(item => (
+                                             <p key={item.productId} className="text-sm text-gray-400">- {item.productName} (Qty: {item.quantity})</p>
+                                         ))}
+                                     </div>
+                                     {transfer.notes && <p className="text-sm text-gray-400 mt-2">Notes: {transfer.notes}</p>}
+                                 </div>
+                                 <div className="flex gap-2 ml-4">
+                                     <button onClick={()=>handleApproveTransfer(transfer.id)} className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold">Approve</button>
+                                     <div className="flex flex-col gap-2">
+                                         <input type="text" placeholder="Rejection reason" className="bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={rejectionReason} onChange={e=>setRejectionReason(e.target.value)} />
+                                         <button onClick={()=>handleRejectTransfer(transfer.id)} className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold text-sm">Reject</button>
+                                     </div>
+                                 </div>
+                             </div>
+                         ))}
+                         {productTransfers.filter(t => t.toBranchId === user?.storeId && t.status === 'PENDING').length === 0 && <p className="text-gray-500">No pending transfers.</p>}
+                     </div>
+                 )}
+                 {transferSubTab === 'history' && (
+                     <table className="w-full text-left text-sm text-gray-300">
+                         <thead className="bg-gray-900 text-gray-400 font-bold"><tr><th>Date</th><th>From</th><th>Items</th><th>Status</th><th>Reviewed By</th></tr></thead>
+                         <tbody className="divide-y divide-gray-700">
+                             {productTransfers.filter(t => t.toBranchId === user?.storeId && t.status !== 'PENDING').map(transfer => (
+                                 <tr key={transfer.id}>
+                                     <td className="p-3">{new Date(transfer.date).toLocaleDateString()}</td>
+                                     <td className="p-3 font-bold text-white">{transfer.fromBranchName || 'Super Admin'}</td>
+                                     <td className="p-3">{transfer.items.length} items</td>
+                                     <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${transfer.status === 'APPROVED' ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>{transfer.status}</span></td>
+                                     <td className="p-3">{transfer.reviewedByName}</td>
+                                 </tr>
+                             ))}
+                         </tbody>
+                     </table>
+                 )}
+             </div>
+         )}
+
          {activeTab === 'debts' && (
              <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
                  <h3 className="font-bold text-white text-lg mb-4">Manage Customer Debts</h3>

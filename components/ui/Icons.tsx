@@ -8,10 +8,12 @@ import {
   Plus,
   Trash2,
   Search,
-  ChartNoAxesColumn,
+  BarChart3,
   Receipt,
   CreditCard,
   UserCheck,
+  // ... (omitting lines for brevity, I will use ReplaceFileContent carefully)
+
   TriangleAlert,
   Sparkles,
   TrendingUp,
@@ -79,7 +81,7 @@ export const Icons = {
   Plus: Plus,
   Delete: Trash2,
   Search: Search,
-  Reports: ChartNoAxesColumn,
+  Reports: BarChart3,
   Receipt: Receipt,
   Card: CreditCard,
   CreditCard: CreditCard,

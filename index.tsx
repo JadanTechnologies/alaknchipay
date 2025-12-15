@@ -9,6 +9,10 @@ if (!rootElement) {
 
 import ErrorBoundary from './components/ErrorBoundary';
 
+console.log('Debugging Error #130 - index.tsx:');
+console.log('App imported:', App);
+console.log('ErrorBoundary imported:', ErrorBoundary);
+
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>

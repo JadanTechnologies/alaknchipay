@@ -144,3 +144,10 @@ export const Icons = {
   Password: Key,
   DownloadCloud: CloudDownload
 };
+
+// Debug logging for undefined icons
+console.log('Debugging Icons:', Icons);
+Object.entries(Icons).forEach(([key, value]) => {
+  if (!value) console.error(`Icon ${key} is undefined!`);
+});
+

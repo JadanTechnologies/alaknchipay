@@ -43,7 +43,7 @@ const setItem = <T>(key: string, value: T): void => {
 
 // Initialize default data if not present
 export const initializeLocalStorage = (): void => {
-  // Initialize users - ONLY SUPER ADMIN, NO DEMO USERS
+  // Initialize users - SUPER ADMIN AND DEMO CASHIER
   if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
     const defaultUsers: User[] = [
       {
@@ -52,6 +52,16 @@ export const initializeLocalStorage = (): void => {
         username: 'salmanu@alkanchipay.com',
         password: 'Salmanu@2025',
         role: 'SUPER_ADMIN',
+        active: true,
+        storeId: undefined,
+        expenseLimit: 0
+      },
+      {
+        id: 'cashier_demo_1',
+        name: 'Demo Cashier',
+        username: 'cashier@alkanchipay.com',
+        password: 'Cashier@2025',
+        role: 'CASHIER',
         active: true,
         storeId: undefined,
         expenseLimit: 0

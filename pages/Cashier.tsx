@@ -868,20 +868,23 @@ export const Cashier = () => {
                     </table>
                 </div>
 
-                <h3 className="font-bold text-white mb-4 text-lg">Inventory Movement (Sold Today)</h3>
+                <h3 className="font-bold text-white mb-4 text-lg">Inventory Movement & Sales Summary (Sold Today)</h3>
                 <div className="overflow-hidden rounded-lg border border-gray-700">
                     <table className="w-full text-left text-sm text-gray-300">
-                        <thead className="bg-gray-900 text-gray-400 font-bold"><tr><th className="p-3">Item</th><th className="p-3 text-center">Opening (Est)</th><th className="p-3 text-center">Sold</th><th className="p-3 text-center">Closing</th></tr></thead>
+                        <thead className="bg-gray-900 text-gray-400 font-bold"><tr><th className="p-3">Item Name</th><th className="p-3 text-center">Qty Sold</th><th className="p-3 text-right">Unit Price</th><th className="p-3 text-right">Total Amount</th><th className="p-3 text-center">Opening (Est)</th><th className="p-3 text-center">Closing</th></tr></thead>
                         <tbody className="divide-y divide-gray-700">
                             {Object.entries(todaysTxs.flatMap(t => t.items).reduce((acc: any, item) => {
-                                if(!acc[item.name]) acc[item.name] = { qty: 0, stock: products.find(p=>p.id===item.id)?.stock || 0 };
+                                if(!acc[item.name]) acc[item.name] = { qty: 0, stock: products.find(p=>p.id===item.id)?.stock || 0, price: item.sellingPrice, total: 0 };
                                 acc[item.name].qty += item.quantity;
+                                acc[item.name].total += item.sellingPrice * item.quantity;
                                 return acc;
                             }, {})).map(([name, data]: any) => (
-                                <tr key={name}>
+                                <tr key={name} className="hover:bg-gray-700">
                                     <td className="p-3 font-medium text-white">{name}</td>
-                                    <td className="p-3 text-center text-gray-500">{data.qty + data.stock}</td>
                                     <td className="p-3 text-center text-blue-400 font-bold">{data.qty}</td>
+                                    <td className="p-3 text-right text-gray-400">{settings.currency}{data.price.toFixed(2)}</td>
+                                    <td className="p-3 text-right font-bold text-green-400">{settings.currency}{data.total.toFixed(2)}</td>
+                                    <td className="p-3 text-center text-gray-500">{data.qty + data.stock}</td>
                                     <td className="p-3 text-center text-white">{data.stock}</td>
                                 </tr>
                             ))}

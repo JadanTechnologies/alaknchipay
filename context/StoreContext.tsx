@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Product, Transaction, Category, ProductType, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod, Customer, PurchaseOrder, ProductTransfer } from '../types';
+import { User, Product, Transaction, Category, ProductType, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod, Customer, PurchaseOrder, ProductTransfer, TransactionStatus } from '../types';
 import * as LocalStorage from '../services/localStorage';
 import { useAuth } from './AuthContext';
 import { nanoid } from 'nanoid';
@@ -432,6 +432,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addTransaction = (transaction: Transaction) => {
     const newTransaction = LocalStorage.Transactions.create(transaction);
     setTransactions(prev => [...prev, newTransaction]);
+    
+    // Decrease product stock for each item sold (only if transaction is not held)
+    if (transaction.status !== TransactionStatus.HELD) {
+      transaction.items.forEach(item => {
+        const product = products.find(p => p.id === item.id);
+        if (product) {
+          const updatedProduct = {
+            ...product,
+            stock: Math.max(0, product.stock - item.quantity)
+          };
+          LocalStorage.Products.update(product.id, updatedProduct);
+          setProducts(prev => prev.map(p => p.id === product.id ? updatedProduct : p));
+        }
+      });
+    }
+    
     addNotification('Transaction recorded successfully', 'success');
   };
 
@@ -618,6 +634,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     LocalStorage.Transactions.update(transactionId, updatedTransaction);
     setTransactions(prev => prev.map(t => t.id === transactionId ? updatedTransaction : t));
+    
+    // Restore product stock if condition is "Good"
+    if (condition === 'Good') {
+      items.forEach(refundItem => {
+        const product = products.find(p => p.id === refundItem.itemId);
+        if (product) {
+          const updatedProduct = {
+            ...product,
+            stock: product.stock + refundItem.quantity
+          };
+          LocalStorage.Products.update(product.id, updatedProduct);
+          setProducts(prev => prev.map(p => p.id === product.id ? updatedProduct : p));
+        }
+      });
+    }
+    
     addNotification('Refund processed successfully', 'success');
   };
 

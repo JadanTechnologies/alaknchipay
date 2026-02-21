@@ -440,9 +440,9 @@ export const Admin = () => {
       const formData = new FormData(e.currentTarget);
       const productData: Product = {
           id: editingProduct ? editingProduct.id : nanoid(),
-          sku: formData.get('sku') as string,
-          name: formData.get('name') as string,
-          description: formData.get('description') as string,
+          sku: (formData.get('sku') as string).trim(),
+          name: (formData.get('name') as string).trim(),
+          description: (formData.get('description') as string)?.trim() || '',
           category: formData.get('category') as string,
           costPrice: parseFloat(formData.get('costPrice') as string),
           sellingPrice: parseFloat(formData.get('sellingPrice') as string),
@@ -450,6 +450,7 @@ export const Admin = () => {
           minStockAlert: parseInt(formData.get('minStockAlert') as string),
           storeId: user?.storeId
       };
+      console.log('Saving product:', productData);
       if (editingProduct) updateProduct(productData); else addProduct(productData);
       setIsProductModalOpen(false); setEditingProduct(null);
   };

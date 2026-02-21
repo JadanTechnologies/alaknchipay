@@ -651,8 +651,8 @@ export const Cashier = () => {
                                 <div className="mt-1">
                                     <span className="inline-block text-xs bg-blue-600 text-white px-2 py-0.5 rounded font-semibold">{product.category}</span>
                                 </div>
-                                <p className="text-xs text-gray-300 mt-1.5 mb-auto leading-tight line-clamp-3 min-h-[3rem] flex items-center">
-                                    {product.description && product.description.trim() ? product.description : <span className="text-gray-500 italic">No description</span>}
+                                <p className="text-xs text-gray-300 mt-1.5 mb-auto leading-tight line-clamp-3">
+                                    {product.description && product.description.trim() ? product.description : <span className="text-gray-400 text-xs italic">No description provided</span>}
                                 </p>
                                 <div className="mt-2 pt-2 border-t border-gray-600 flex justify-between items-center">
                                     <span className="text-green-400 font-bold text-sm">{settings.currency}{product.sellingPrice.toFixed(2)}</span>

@@ -97,17 +97,13 @@ export const Login = () => {
         </form>
 
         <div className="mt-6 text-xs text-gray-400 text-center border-t pt-4">
-          <p className="mb-3 font-semibold text-gray-600">Demo Credentials:</p>
-          <div className="mb-3">
+          <p className="mb-3 font-semibold text-gray-600">Admin Credentials:</p>
+          <div>
             <p className="font-medium text-gray-700">Super Admin:</p>
             <p>Email: <code className="bg-gray-100 px-1">salmanu@alkanchipay.com</code></p>
             <p>Password: <code className="bg-gray-100 px-1">Salmanu@2025</code></p>
           </div>
-          <div>
-            <p className="font-medium text-gray-700">Cashier:</p>
-            <p>Email: <code className="bg-gray-100 px-1">cashier@alkanchipay.com</code></p>
-            <p>Password: <code className="bg-gray-100 px-1">Cashier@2025</code></p>
-          </div>
+          <p className="mt-3 text-gray-500">Cashier accounts are created by Super Admin via the Users panel.</p>
         </div>
       </div>
     </div>

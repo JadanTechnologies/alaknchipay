@@ -25,17 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Initialize localStorage with default data
         initializeLocalStorage();
 
-        // Check if user is already logged in
-        const savedSession = localStorage.getItem('alkanchipay_session');
-        if (savedSession) {
-            try {
-                const sessionData = JSON.parse(savedSession);
-                setSession(sessionData);
-                setUser(sessionData);
-            } catch (e) {
-                console.error('Error parsing session', e);
-            }
-        }
+        // Do NOT auto-login - require manual login
         setLoading(false);
     }, []);
 

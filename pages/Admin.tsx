@@ -625,6 +625,59 @@ export const Admin = () => {
                                 </tr>
                             </tfoot>
                         </table>
+                    ) : reportViewMode === 'deposits' ? (
+                        <table className="w-full text-left text-sm text-gray-300">
+                            <thead className="bg-gray-900 text-gray-400 text-xs uppercase font-bold">
+                                <tr><th>Date</th><th>Transaction ID</th><th>Item Name</th><th>Quantity</th><th>Amount</th><th>Payment Method</th><th>Status</th></tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-700">
+                                {filteredReportTransactions.map(t => 
+                                    t.items.map(item => (
+                                        <tr key={`${t.id}-${item.id}`} className="hover:bg-gray-700/50">
+                                            <td className="p-3">{new Date(t.date).toLocaleString()}</td>
+                                            <td className="p-3 font-mono text-xs">{t.id.slice(0,8)}</td>
+                                            <td className="p-3 font-bold">{item.name}</td>
+                                            <td className="p-3">{item.quantity}</td>
+                                            <td className="p-3 text-green-400 font-bold">{settings.currency}{(item.sellingPrice * item.quantity).toFixed(2)}</td>
+                                            <td className="p-3">{t.paymentMethod}</td>
+                                            <td className="p-3">{t.status}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                            <tfoot className="bg-gray-900 font-bold text-white">
+                                <tr>
+                                    <td colSpan={4} className="p-4 text-right">Total Deposit:</td>
+                                    <td className="p-4">{settings.currency}{filteredReportTransactions.reduce((sum, t) => sum + t.total, 0).toFixed(2)}</td>
+                                    <td colSpan={2}></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    ) : reportViewMode === 'items' ? (
+                        <table className="w-full text-left text-sm text-gray-300">
+                            <thead className="bg-gray-900 text-gray-400 text-xs uppercase font-bold">
+                                <tr><th>Item Name</th><th>SKU</th><th>Category</th><th>Stock</th><th>Cost Price</th><th>Selling Price</th><th>Total Value</th></tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-700">
+                                {branchProducts.map(p => (
+                                    <tr key={p.id} className="hover:bg-gray-700/50">
+                                        <td className="p-3 font-bold">{p.name}</td>
+                                        <td className="p-3 font-mono text-xs">{p.sku}</td>
+                                        <td className="p-3">{p.category}</td>
+                                        <td className="p-3">{p.stock}</td>
+                                        <td className="p-3">{settings.currency}{p.costPrice.toFixed(2)}</td>
+                                        <td className="p-3">{settings.currency}{p.sellingPrice.toFixed(2)}</td>
+                                        <td className="p-3 text-green-400 font-bold">{settings.currency}{(p.stock * p.sellingPrice).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-gray-900 font-bold text-white">
+                                <tr>
+                                    <td colSpan={6} className="p-4 text-right">Total Inventory Value:</td>
+                                    <td className="p-4">{settings.currency}{branchProducts.reduce((sum, p) => sum + (p.stock * p.sellingPrice), 0).toFixed(2)}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     ) : (
                         <div>
                             {selectedTransactions.size > 0 && (
@@ -637,12 +690,13 @@ export const Admin = () => {
                                 </div>
                             )}
                             <table className="w-full text-left text-sm text-gray-300">
-                               <thead className="bg-gray-900 text-gray-400 text-xs uppercase font-bold"><tr><th className="p-3 w-8"><input type="checkbox" className="w-4 h-4 accent-blue-600" checked={selectedTransactions.size === filteredReportTransactions.length && filteredReportTransactions.length > 0} onChange={e => { if(e.target.checked) { setSelectedTransactions(new Set(filteredReportTransactions.map(t => t.id))); } else { setSelectedTransactions(new Set()); } }} /></th><th>Date</th><th>ID</th><th>Cashier</th><th>Method</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+                               <thead className="bg-gray-900 text-gray-400 text-xs uppercase font-bold"><tr><th className="p-3 w-8"><input type="checkbox" className="w-4 h-4 accent-blue-600" checked={selectedTransactions.size === filteredReportTransactions.length && filteredReportTransactions.length > 0} onChange={e => { if(e.target.checked) { setSelectedTransactions(new Set(filteredReportTransactions.map(t => t.id))); } else { setSelectedTransactions(new Set()); } }} /></th><th>Date</th><th>ID</th><th>Items</th><th>Cashier</th><th>Method</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
                                <tbody className="divide-y divide-gray-700">
                                    {filteredReportTransactions.map(t => (
                                        <tr key={t.id} className="hover:bg-gray-700/50">
                                            <td className="p-3 w-8"><input type="checkbox" className="w-4 h-4 accent-blue-600" checked={selectedTransactions.has(t.id)} onChange={e => { const newSet = new Set(selectedTransactions); if(e.target.checked) { newSet.add(t.id); } else { newSet.delete(t.id); } setSelectedTransactions(newSet); }} /></td>
                                            <td className="p-3">{new Date(t.date).toLocaleString()}</td><td className="p-3 font-mono text-xs">{t.id.slice(0,8)}</td>
+                                           <td className="p-3">{t.items.map(i => i.name).join(', ')}</td>
                                            <td className="p-3">{t.cashierName}</td><td className="p-3">{t.paymentMethod}</td>
                                            <td className="p-3 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td><td className="p-3">{t.status}</td>
                                            <td className="p-3"><button onClick={() => { if(window.confirm('Move to recycle bin?')) deleteTransaction(t.id); }} className="text-red-400 hover:text-red-300"><Icons.Delete size={16}/></button></td>

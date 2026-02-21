@@ -140,7 +140,8 @@ export const Cashier = () => {
       if (item.id === id) {
         const newQty = Math.max(1, item.quantity + delta);
         const product = products.find(p => p.id === id);
-        if (product && newQty > product.stock) return item;
+        // Only check stock when INCREASING quantity, allow decreasing anytime
+        if (delta > 0 && product && newQty > product.stock) return item;
         return { ...item, quantity: newQty };
       }
       return item;
@@ -160,6 +161,20 @@ export const Cashier = () => {
       setCart(t.items);
     setCustomerName(t.customerName || '');
     setSelectedCustomer(t.customerId ? customers.find(c => c.id === t.customerId) || null : null);
+    // Restore discount if it exists
+    if (t.discount > 0) {
+        const discountPercent = ((t.discount / t.subtotal) * 100);
+        if (Math.round(discountPercent * 10) === Math.round((t.discount / t.subtotal) * 100 * 10)) {
+            setDiscountType('PERCENTAGE');
+            setDiscountInput(discountPercent.toFixed(2));
+        } else {
+            setDiscountType('FIXED');
+            setDiscountInput(t.discount.toFixed(2));
+        }
+    }
+    if (t.status === TransactionStatus.PARTIAL && t.dueDate) {
+        setDueDate(t.dueDate);
+    }
       setIsRecallModalOpen(false);
   };
   
@@ -253,7 +268,10 @@ export const Cashier = () => {
   const toggleItemReturn = (itemId: string, maxQty: number) => {
       const exists = itemsToReturn.find(i => i.itemId === itemId);
       if (exists) setItemsToReturn(prev => prev.filter(i => i.itemId !== itemId));
-      else setItemsToReturn(prev => [...prev, { itemId, qty: 1 }]);
+      else setItemsToReturn(prev => [...prev, { itemId, qty: maxQty }]);
+  };
+  const updateReturnQuantity = (itemId: string, newQty: number) => {
+      setItemsToReturn(prev => prev.map(i => i.itemId === itemId ? { ...i, qty: Math.max(1, Math.min(newQty, transactions.find(t => t.id === returnTransaction?.id)?.items.find(it => it.id === itemId)?.quantity || 1)) } : i));
   };
   const handleProcessReturn = () => {
       if (!returnTransaction) return;
@@ -606,6 +624,7 @@ export const Cashier = () => {
                             <button key={product.id} onClick={() => addToCart(product)} disabled={product.stock <= 0} className={`text-left p-4 rounded-xl border transition ${product.stock <= 0 ? 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed' : 'bg-gray-700 border-gray-600 hover:border-blue-500 hover:shadow-md'}`}>
                                 <div className="h-24 bg-gray-800 rounded-lg mb-3 flex items-center justify-center"><Icons.Inventory size={32} className="text-gray-500" /></div>
                                 <h3 className="font-bold text-gray-100 truncate">{product.name}</h3>
+                                {product.description && <p className="text-xs text-gray-400 mt-1 truncate">{product.description}</p>}
                                 <div className="flex justify-between items-center mt-2">
                                     <span className="text-blue-400 font-bold">{settings.currency}{product.sellingPrice}</span>
                                     <span className={`text-xs px-2 py-1 rounded ${product.stock < product.minStockAlert ? 'bg-red-900 text-red-400' : 'bg-green-900 text-green-400'}`}>{product.stock}</span>
@@ -810,7 +829,7 @@ export const Cashier = () => {
 
         {/* END OF DAY TAB */}
         {activeTab === 'endofday' && (
-            <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 max-w-4xl mx-auto">
+            <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 max-w-6xl mx-auto">
                 <div className="flex justify-between items-center mb-8 border-b border-gray-700 pb-4">
                     <div>
                         <h2 className="text-2xl font-bold text-white">End of Day Report</h2>
@@ -822,14 +841,34 @@ export const Cashier = () => {
                     </div>
                 </div>
                 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-gray-900 p-4 rounded-lg border border-gray-700"><p className="text-gray-400 text-xs uppercase font-bold">Total Revenue</p><h3 className="text-xl font-bold text-white">{settings.currency}{totalSales.toFixed(2)}</h3></div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+                    <div className="bg-gray-900 p-4 rounded-lg border border-gray-700"><p className="text-gray-400 text-xs uppercase font-bold">Subtotal</p><h3 className="text-xl font-bold text-white">{settings.currency}{(totalSales + todaysTxs.reduce((a,b) => a + b.discount, 0)).toFixed(2)}</h3></div>
+                    <div className="bg-gray-900 p-4 rounded-lg border border-gray-700"><p className="text-gray-400 text-xs uppercase font-bold">Total Discount</p><h3 className="text-xl font-bold text-red-400">-{settings.currency}{todaysTxs.reduce((a,b) => a + b.discount, 0).toFixed(2)}</h3></div>
+                    <div className="bg-gray-900 p-4 rounded-lg border border-gray-700"><p className="text-gray-400 text-xs uppercase font-bold">Net Revenue</p><h3 className="text-xl font-bold text-white">{settings.currency}{totalSales.toFixed(2)}</h3></div>
                     <div className="bg-gray-900 p-4 rounded-lg border border-gray-700"><p className="text-gray-400 text-xs uppercase font-bold">Cash In Hand</p><h3 className="text-xl font-bold text-green-400">{settings.currency}{cashInHand.toFixed(2)}</h3></div>
-                    <div className="bg-gray-900 p-4 rounded-lg border border-gray-700"><p className="text-gray-400 text-xs uppercase font-bold">Transfers</p><h3 className="text-xl font-bold text-blue-400">{settings.currency}{paymentBreakdown[PaymentMethod.TRANSFER].toFixed(2)}</h3></div>
                     <div className="bg-gray-900 p-4 rounded-lg border border-gray-700"><p className="text-gray-400 text-xs uppercase font-bold">POS</p><h3 className="text-xl font-bold text-yellow-400">{settings.currency}{paymentBreakdown[PaymentMethod.POS].toFixed(2)}</h3></div>
                 </div>
 
-                <h3 className="font-bold text-white mb-4">Inventory Movement (Sold Today)</h3>
+                <h3 className="font-bold text-white mb-4 text-lg">Sales Breakdown (Subtotal vs Net Amount After Discount)</h3>
+                <div className="overflow-hidden rounded-lg border border-gray-700 mb-8">
+                    <table className="w-full text-left text-sm text-gray-300">
+                        <thead className="bg-gray-900 text-gray-400 font-bold"><tr><th className="p-3">Transaction ID</th><th className="p-3 text-right">Subtotal</th><th className="p-3 text-right">Discount</th><th className="p-3 text-right">Net Amount</th><th className="p-3">Customer</th><th className="p-3">Payment</th></tr></thead>
+                        <tbody className="divide-y divide-gray-700">
+                            {todaysTxs.map(tx => (
+                                <tr key={tx.id} className="hover:bg-gray-700">
+                                    <td className="p-3 font-mono text-gray-200">{tx.id.substring(0, 8)}</td>
+                                    <td className="p-3 text-right text-blue-400">{settings.currency}{(tx.subtotal).toFixed(2)}</td>
+                                    <td className="p-3 text-right text-red-400">-{settings.currency}{tx.discount.toFixed(2)}</td>
+                                    <td className="p-3 text-right font-bold text-white">{settings.currency}{tx.total.toFixed(2)}</td>
+                                    <td className="p-3 text-gray-300">{tx.customerName || 'Walk-in'}</td>
+                                    <td className="p-3 capitalize text-yellow-400">{tx.paymentMethod === PaymentMethod.SPLIT ? 'Split' : tx.paymentMethod}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 className="font-bold text-white mb-4 text-lg">Inventory Movement (Sold Today)</h3>
                 <div className="overflow-hidden rounded-lg border border-gray-700">
                     <table className="w-full text-left text-sm text-gray-300">
                         <thead className="bg-gray-900 text-gray-400 font-bold"><tr><th className="p-3">Item</th><th className="p-3 text-center">Opening (Est)</th><th className="p-3 text-center">Sold</th><th className="p-3 text-center">Closing</th></tr></thead>
@@ -863,15 +902,34 @@ export const Cashier = () => {
                     <div className="flex flex-col animate-in fade-in slide-in-from-bottom-4">
                         <h3 className="font-bold text-lg mb-4 text-white">Select Items to Return</h3>
                         <div className="flex-1 overflow-auto border border-gray-600 rounded-lg p-4 mb-4 bg-gray-900">
-                            {returnTransaction.items.map(item => (
-                                <div key={item.id} className="flex justify-between items-center p-3 border-b border-gray-700 bg-gray-800 mb-2 rounded shadow-sm">
-                                    <div className="flex items-center gap-3">
-                                        <input type="checkbox" className="w-5 h-5 accent-blue-600" checked={!!itemsToReturn.find(i => i.itemId === item.id)} onChange={() => toggleItemReturn(item.id, item.quantity)} />
-                                        <span className="font-bold text-gray-300">{item.name} (Qty: {item.quantity})</span>
+                            {returnTransaction.items.map(item => {
+                                const returnItem = itemsToReturn.find(i => i.itemId === item.id);
+                                return (
+                                    <div key={item.id} className="flex justify-between items-center p-3 border-b border-gray-700 bg-gray-800 mb-2 rounded shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <input type="checkbox" className="w-5 h-5 accent-blue-600" checked={!!returnItem} onChange={() => toggleItemReturn(item.id, item.quantity)} />
+                                            <div>
+                                                <span className="font-bold text-gray-300 block">{item.name}</span>
+                                                <span className="text-xs text-gray-500">Available: {item.quantity} units</span>
+                                            </div>
+                                        </div>
+                                        {returnItem && (
+                                            <div className="flex items-center gap-2">
+                                                <input 
+                                                    type="number" 
+                                                    min="1" 
+                                                    max={item.quantity} 
+                                                    value={returnItem.qty}
+                                                    onChange={(e) => updateReturnQuantity(item.id, parseInt(e.target.value) || 1)}
+                                                    className="w-12 bg-gray-700 border border-gray-600 text-white p-1 rounded text-center text-sm"
+                                                />
+                                                <span className="text-white text-sm">x</span>
+                                            </div>
+                                        )}
+                                        <span className="font-bold text-white">{settings.currency}{item.sellingPrice}</span>
                                     </div>
-                                    <span className="font-bold text-white">{settings.currency}{item.sellingPrice}</span>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div>

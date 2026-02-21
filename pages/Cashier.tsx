@@ -643,17 +643,19 @@ export const Cashier = () => {
                             <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition ${selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>{cat}</button>
                         ))}
                     </div>
-                    <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start">
+                    <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 content-start">
                         {filteredProducts.map(product => (
-                            <button key={product.id} onClick={() => addToCart(product)} disabled={product.stock <= 0} className={`text-left p-3 rounded-lg border transition flex flex-col ${product.stock <= 0 ? 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed' : 'bg-gray-700 border-gray-600 hover:border-blue-500 hover:shadow-lg hover:bg-gray-650'}`}>
-                                <div className="h-20 bg-gray-800 rounded mb-2 flex items-center justify-center"><Icons.Inventory size={28} className="text-gray-500" /></div>
-                                <h3 className="font-bold text-sm text-gray-100 truncate">{product.name}</h3>
-                                <div className="mt-1 mb-1">
+                            <button key={product.id} onClick={() => addToCart(product)} disabled={product.stock <= 0} className={`text-left p-3 rounded-lg border transition flex flex-col h-full ${product.stock <= 0 ? 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed' : 'bg-gray-700 border-gray-600 hover:border-blue-400 hover:shadow-lg'}`}>
+                                <div className="h-16 bg-gray-800 rounded mb-2 flex items-center justify-center"><Icons.Inventory size={24} className="text-gray-500" /></div>
+                                <h3 className="font-bold text-sm text-gray-100 line-clamp-1">{product.name}</h3>
+                                <div className="mt-1">
                                     <span className="inline-block text-xs bg-blue-600 text-white px-2 py-0.5 rounded font-semibold">{product.category}</span>
                                 </div>
-                                {product.description && <p className="text-xs text-gray-300 line-clamp-2 mb-2">{product.description}</p>}
-                                <div className="mt-auto pt-2 border-t border-gray-600 flex justify-between items-center">
-                                    <span className="text-blue-300 font-bold text-sm">{settings.currency}{product.sellingPrice}</span>
+                                <p className="text-xs text-gray-300 mt-1.5 mb-auto leading-tight line-clamp-3 min-h-[3rem] flex items-center">
+                                    {product.description || <span className="text-gray-500 italic">No description</span>}
+                                </p>
+                                <div className="mt-2 pt-2 border-t border-gray-600 flex justify-between items-center">
+                                    <span className="text-green-400 font-bold text-sm">{settings.currency}{product.sellingPrice.toFixed(2)}</span>
                                     <span className={`text-xs px-2 py-0.5 rounded font-semibold ${product.stock < product.minStockAlert ? 'bg-red-900 text-red-300' : 'bg-green-900 text-green-300'}`}>Stock: {product.stock}</span>
                                 </div>
                             </button>

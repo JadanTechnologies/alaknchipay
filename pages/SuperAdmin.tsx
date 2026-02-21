@@ -709,7 +709,7 @@ export const SuperAdmin = () => {
                 )}
 
                 {activeTab === 'branches' && (
-                    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto">
                         <div className="p-6 border-b border-gray-700 flex justify-between items-center gap-4">
                             <div className="flex gap-2 items-center">
                                 <input placeholder="Search branches..." className="bg-gray-900 border border-gray-600 text-white p-2 rounded w-96 text-sm" value={branchSearch} onChange={e => setBranchSearch(e.target.value)} />
@@ -717,7 +717,7 @@ export const SuperAdmin = () => {
                             </div>
                             <button onClick={() => { setEditingBranch(null); setIsBranchModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> Add Branch</button>
                         </div>
-                        <table className="w-full text-left text-sm">
+                        <table className="w-full text-left text-sm whitespace-nowrap">
                             <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold">
                                 <tr>
                                     <th className="p-4">Branch Name</th>
@@ -741,11 +741,11 @@ export const SuperAdmin = () => {
                                             <td className="p-4 font-bold text-white">{b.name}</td>
                                             <td className="p-4 text-gray-400">{b.address}</td>
                                             <td className="p-4 text-blue-400">{manager?.name || 'Unassigned'}</td>
-                                            <td className="p-4 text-white">
+                                            <td className="p-4 text-white whitespace-nowrap">
                                                 <div className="text-xs">Cost: {settings.currency}{metrics.totalCost.toFixed(2)}</div>
                                                 <div className="text-xs text-green-400">Sales: {settings.currency}{metrics.totalSales.toFixed(2)}</div>
                                             </td>
-                                            <td className="p-4 font-bold text-green-400">{settings.currency}{financials?.revenue.toFixed(2)}</td>
+                                            <td className="p-4 font-bold text-green-400 whitespace-nowrap">{settings.currency}{financials?.revenue.toFixed(2)}</td>
                                             <td className="p-4 text-right flex justify-end gap-3 items-center" onClick={e => e.stopPropagation()}>
                                                 <button onClick={() => handleGenerateBranchFinancials(b, 'print')} title="Print Financial Report"><Icons.Printer className="text-gray-400 hover:text-white" size={16} /></button>
                                                 <button onClick={() => handleGenerateBranchFinancials(b, 'pdf')} title="Download Financial PDF"><Icons.FileText className="text-blue-400 hover:text-blue-300" size={16} /></button>

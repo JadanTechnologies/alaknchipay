@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Icons } from '../components/ui/Icons';
-import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus, ExpenseCategory, UserRole, Permission, PurchaseOrder, PurchaseOrderStatus, ProductTransfer, ProductTransferStatus } from '../types';
+import { User, Role, Branch, PaymentMethod, TransactionStatus, Product, Expense, ExpenseStatus, ExpenseCategory, UserRole, Permission, PurchaseOrder, PurchaseOrderStatus, ProductTransfer, ProductTransferStatus, Category, ProductType } from '../types';
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
 import { PurchaseOrderForm } from '../components/ui/PurchaseOrderForm';
@@ -18,7 +18,9 @@ export const SuperAdmin = () => {
         settings, updateSettings, logout,
         branches, addBranch, updateBranch, deleteBranch,
         addProduct, updateProduct, deleteProduct,
-        categories, addCategory, deleteCategory, user,
+        categories, addCategory, updateCategory, deleteCategory,
+        productTypes, addProductType, updateProductType, deleteProductType,
+        user,
         activityLogs, expenses, updateExpense, deleteExpense,
         expenseCategories, addExpenseCategory, deleteExpenseCategory,
         createBackup, restoreBackup, addNotification,
@@ -43,6 +45,11 @@ export const SuperAdmin = () => {
     const [showCategorySidebar, setShowCategorySidebar] = useState(true);
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const [isProductTypeModalOpen, setIsProductTypeModalOpen] = useState(false);
+    const [editingProductType, setEditingProductType] = useState<ProductType | null>(null);
+    const [inventorySubTab, setInventorySubTab] = useState<'products' | 'categories' | 'types'>('products');
 
     // Expense Management State
     const [expenseSubTab, setExpenseSubTab] = useState<'requests' | 'categories' | 'summary'>('requests');
@@ -67,7 +74,7 @@ export const SuperAdmin = () => {
     const [transferFilterStatus, setTransferFilterStatus] = useState<string>('ALL');
 
     // View & Nav State
-    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'transactions' | 'settings' | 'inventory' | 'profile' | 'activity' | 'expenses' | 'purchases' | 'transfers' | 'recycleBin'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'transactions' | 'settings' | 'inventory' | 'profile' | 'activity' | 'expenses' | 'purchases' | 'transfers' | 'roles' | 'recycleBin'>('overview');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     // Filters
@@ -484,12 +491,28 @@ export const SuperAdmin = () => {
     const handleSaveRole = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
+        const roleName = (formData.get('name') as string)?.trim();
+        const roleDescription = (formData.get('description') as string)?.trim() || '';
+        
+        // Validation
+        if (!roleName) {
+            addNotification('Role name is required', 'error');
+            return;
+        }
+        
+        // Check for duplicate role name (excluding current role if editing)
+        const existingRole = roles.find(r => r.name.toLowerCase() === roleName.toLowerCase() && (!editingRole || r.id !== editingRole.id));
+        if (existingRole) {
+            addNotification('A role with this name already exists', 'error');
+            return;
+        }
+        
         const selectedPerms = permissions.filter(p => formData.get(`perm_${p.id}`) === 'on').map(p => p.name);
 
         const roleData: UserRole = {
             id: editingRole ? editingRole.id : nanoid(),
-            name: formData.get('name') as string,
-            description: formData.get('description') as string,
+            name: roleName,
+            description: roleDescription,
             isSystemDefined: false,
             permissions: selectedPerms
         };
@@ -737,48 +760,130 @@ export const SuperAdmin = () => {
 
                 {activeTab === 'inventory' && (
                     <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
-                        <div className="p-6 border-b border-gray-700 flex flex-wrap gap-4 items-center">
-                            <div className="flex gap-2 items-center">
-                                <input placeholder="Search Inventory..." className="bg-gray-900 border border-gray-600 text-white p-2 rounded w-64 text-sm" value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} />
-                                <button onClick={() => setInventorySearch('')} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"><Icons.Close size={14} /> Clear</button>
-                            </div>
-                            <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={inventoryBranchFilter} onChange={e => setInventoryBranchFilter(e.target.value)}>
-                                <option value="">All Branches</option>
-                                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                            </select>
-                            <button onClick={() => { setEditingProduct(null); setIsProductModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold ml-auto"><Icons.Add size={16} /> Add Product</button>
+                        {/* Inventory Subtabs */}
+                        <div className="p-4 border-b border-gray-700 flex gap-2">
+                            <button onClick={() => setInventorySubTab('products')} className={`px-4 py-2 rounded-lg font-bold transition-colors ${inventorySubTab === 'products' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                                📦 Products
+                            </button>
+                            <button onClick={() => setInventorySubTab('categories')} className={`px-4 py-2 rounded-lg font-bold transition-colors ${inventorySubTab === 'categories' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                                📂 Categories
+                            </button>
+                            <button onClick={() => setInventorySubTab('types')} className={`px-4 py-2 rounded-lg font-bold transition-colors ${inventorySubTab === 'types' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                                🏷️ Types
+                            </button>
                         </div>
-                        <div className="flex-1 overflow-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
-                                    <tr>
-                                        <th className="p-4">Product Name</th>
-                                        <th className="p-4">SKU</th>
-                                        <th className="p-4">Branch</th>
-                                        <th className="p-4">Cost</th>
-                                        <th className="p-4">Price</th>
-                                        <th className="p-4 text-center">Stock</th>
-                                        <th className="p-4 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-700 text-gray-200">
-                                    {filteredInventory.map(p => (
-                                        <tr key={p.id} className="hover:bg-gray-700/50">
-                                            <td className="p-4 font-bold text-white">{p.name}</td>
-                                            <td className="p-4 font-mono text-gray-400">{p.sku}</td>
-                                            <td className="p-4 text-blue-400">{branches.find(b => b.id === p.storeId)?.name || 'Unassigned'}</td>
-                                            <td className="p-4">{settings.currency}{p.costPrice.toFixed(2)}</td>
-                                            <td className="p-4">{settings.currency}{p.sellingPrice.toFixed(2)}</td>
-                                            <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${p.stock <= p.minStockAlert ? 'bg-red-900 text-red-400' : 'bg-green-900 text-green-400'}`}>{p.stock}</span></td>
-                                            <td className="p-4 text-right">
-                                                <button onClick={() => { setEditingProduct(p); setIsProductModalOpen(true); }} className="text-blue-400 hover:text-blue-300 mr-3"><Icons.Settings size={16} /></button>
-                                                <button onClick={() => deleteProduct(p.id)} className="text-red-400 hover:text-red-300"><Icons.Delete size={16} /></button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+
+                        {/* Products Tab */}
+                        {inventorySubTab === 'products' && (
+                            <>
+                                <div className="p-6 border-b border-gray-700 flex flex-wrap gap-4 items-center">
+                                    <div className="flex gap-2 items-center">
+                                        <input placeholder="Search Inventory..." className="bg-gray-900 border border-gray-600 text-white p-2 rounded w-64 text-sm" value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} />
+                                        <button onClick={() => setInventorySearch('')} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm flex items-center gap-1"><Icons.Close size={14} /> Clear</button>
+                                    </div>
+                                    <select className="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm" value={inventoryBranchFilter} onChange={e => setInventoryBranchFilter(e.target.value)}>
+                                        <option value="">All Branches</option>
+                                        {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+                                    <button onClick={() => { setEditingProduct(null); setIsProductModalOpen(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold ml-auto"><Icons.Add size={16} /> Add Product</button>
+                                </div>
+                                <div className="flex-1 overflow-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
+                                            <tr>
+                                                <th className="p-4">Product Name</th>
+                                                <th className="p-4">SKU</th>
+                                                <th className="p-4">Branch</th>
+                                                <th className="p-4">Cost</th>
+                                                <th className="p-4">Price</th>
+                                                <th className="p-4 text-center">Stock</th>
+                                                <th className="p-4 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-700 text-gray-200">
+                                            {filteredInventory.map(p => (
+                                                <tr key={p.id} className="hover:bg-gray-700/50">
+                                                    <td className="p-4 font-bold text-white">{p.name}</td>
+                                                    <td className="p-4 font-mono text-gray-400">{p.sku}</td>
+                                                    <td className="p-4 text-blue-400">{branches.find(b => b.id === p.storeId)?.name || 'Unassigned'}</td>
+                                                    <td className="p-4">{settings.currency}{p.costPrice.toFixed(2)}</td>
+                                                    <td className="p-4">{settings.currency}{p.sellingPrice.toFixed(2)}</td>
+                                                    <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${p.stock <= p.minStockAlert ? 'bg-red-900 text-red-400' : 'bg-green-900 text-green-400'}`}>{p.stock}</span></td>
+                                                    <td className="p-4 text-right">
+                                                        <button onClick={() => { setEditingProduct(p); setIsProductModalOpen(true); }} className="text-blue-400 hover:text-blue-300 mr-3"><Icons.Settings size={16} /></button>
+                                                        <button onClick={() => deleteProduct(p.id)} className="text-red-400 hover:text-red-300"><Icons.Delete size={16} /></button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Categories Tab */}
+                        {inventorySubTab === 'categories' && (
+                            <>
+                                <div className="p-6 border-b border-gray-700 flex gap-4">
+                                    <button onClick={() => { setEditingCategory(null); setIsCategoryModalOpen(true); }} className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> New Category</button>
+                                </div>
+                                <div className="flex-1 overflow-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
+                                            <tr>
+                                                <th className="p-4">Name</th>
+                                                <th className="p-4">Description</th>
+                                                <th className="p-4 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-700 text-gray-200">
+                                            {categories.map(cat => (
+                                                <tr key={cat.id} className="hover:bg-gray-700/50">
+                                                    <td className="p-4 font-bold text-white">{cat.name}</td>
+                                                    <td className="p-4 text-gray-400">{cat.description || '-'}</td>
+                                                    <td className="p-4 text-right">
+                                                        <button onClick={() => { setEditingCategory(cat); setIsCategoryModalOpen(true); }} className="text-blue-400 hover:text-blue-300 mr-3"><Icons.Settings size={16} /></button>
+                                                        <button onClick={() => deleteCategory(cat.id)} className="text-red-400 hover:text-red-300"><Icons.Delete size={16} /></button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Product Types Tab */}
+                        {inventorySubTab === 'types' && (
+                            <>
+                                <div className="p-6 border-b border-gray-700 flex gap-4">
+                                    <button onClick={() => { setEditingProductType(null); setIsProductTypeModalOpen(true); }} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-bold"><Icons.Add size={16} /> New Type</button>
+                                </div>
+                                <div className="flex-1 overflow-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
+                                            <tr>
+                                                <th className="p-4">Name</th>
+                                                <th className="p-4">Description</th>
+                                                <th className="p-4 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-700 text-gray-200">
+                                            {productTypes.map(type => (
+                                                <tr key={type.id} className="hover:bg-gray-700/50">
+                                                    <td className="p-4 font-bold text-white">{type.name}</td>
+                                                    <td className="p-4 text-gray-400">{type.description || '-'}</td>
+                                                    <td className="p-4 text-right">
+                                                        <button onClick={() => { setEditingProductType(type); setIsProductTypeModalOpen(true); }} className="text-blue-400 hover:text-blue-300 mr-3"><Icons.Settings size={16} /></button>
+                                                        <button onClick={() => deleteProductType(type.id)} className="text-red-400 hover:text-red-300"><Icons.Delete size={16} /></button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -1444,6 +1549,76 @@ export const SuperAdmin = () => {
                     </div>
                 )}
 
+                {/* Category Modal */}
+                {isCategoryModalOpen && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                        <div className="bg-gray-800 p-8 rounded-xl w-[500px] border border-gray-700">
+                            <h2 className="text-xl font-bold text-white mb-4">{editingCategory ? 'Edit Category' : 'Add New Category'}</h2>
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                const formData = new FormData(e.currentTarget);
+                                const name = formData.get('name') as string;
+                                const description = formData.get('description') as string;
+                                if (editingCategory) {
+                                    updateCategory(editingCategory.id, name, description);
+                                } else {
+                                    addCategory(name, description);
+                                }
+                                setIsCategoryModalOpen(false);
+                                setEditingCategory(null);
+                            }} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">Category Name *</label>
+                                    <input name="name" defaultValue={editingCategory?.name || ''} placeholder="e.g., Electronics, Groceries" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">Description</label>
+                                    <textarea name="description" defaultValue={editingCategory?.description || ''} placeholder="Category description (optional)" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded h-24"></textarea>
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                    <button type="button" onClick={() => { setIsCategoryModalOpen(false); setEditingCategory(null); }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button>
+                                    <button type="submit" className="flex-1 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-bold">Save Category</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Product Type Modal */}
+                {isProductTypeModalOpen && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                        <div className="bg-gray-800 p-8 rounded-xl w-[500px] border border-gray-700">
+                            <h2 className="text-xl font-bold text-white mb-4">{editingProductType ? 'Edit Product Type' : 'Add New Product Type'}</h2>
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                const formData = new FormData(e.currentTarget);
+                                const name = formData.get('name') as string;
+                                const description = formData.get('description') as string;
+                                if (editingProductType) {
+                                    updateProductType(editingProductType.id, name, description);
+                                } else {
+                                    addProductType(name, description);
+                                }
+                                setIsProductTypeModalOpen(false);
+                                setEditingProductType(null);
+                            }} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">Type Name *</label>
+                                    <input name="name" defaultValue={editingProductType?.name || ''} placeholder="e.g., Smartphone, Laptop, T-Shirt" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">Description</label>
+                                    <textarea name="description" defaultValue={editingProductType?.description || ''} placeholder="Type description (optional)" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded h-24"></textarea>
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                    <button type="button" onClick={() => { setIsProductTypeModalOpen(false); setEditingProductType(null); }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button>
+                                    <button type="submit" className="flex-1 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded font-bold">Save Type</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
                 {/* Password Change Modal */}
                 {isPasswordModalOpen && (
                     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
@@ -1459,6 +1634,48 @@ export const SuperAdmin = () => {
                                     <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Confirm new password" required />
                                 </div>
                                 <div className="flex gap-2 pt-2"><button type="button" onClick={() => { setIsPasswordModalOpen(false); setPasswordChangeUserId(null); setNewPassword(''); setConfirmPassword(''); }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded font-bold">Change</button></div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Role Modal */}
+                {isRoleModalOpen && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 overflow-y-auto p-4">
+                        <div className="bg-gray-800 p-8 rounded-xl w-full max-w-2xl border border-gray-700 my-8">
+                            <h2 className="text-xl font-bold text-white mb-6">{editingRole ? 'Edit Role' : 'Create New Role'}</h2>
+                            <form onSubmit={handleSaveRole} className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-400 mb-2">Role Name</label>
+                                        <input name="name" defaultValue={editingRole?.name} placeholder="e.g., Manager, Supervisor" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-400 mb-2">Description</label>
+                                        <input name="description" defaultValue={editingRole?.description} placeholder="Role description" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-400 mb-3">Assign Permissions</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-3 bg-gray-900 rounded border border-gray-700">
+                                        {permissions.length === 0 ? (
+                                            <p className="col-span-full text-gray-500 text-sm">No permissions available</p>
+                                        ) : (
+                                            permissions.map(perm => (
+                                                <label key={perm.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-800 p-2 rounded">
+                                                    <input type="checkbox" name={`perm_${perm.id}`} defaultChecked={editingRole?.permissions?.includes(perm.name)} className="w-4 h-4 accent-blue-600" />
+                                                    <span className="text-sm text-gray-300">{perm.name}</span>
+                                                </label>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 pt-4 border-t border-gray-700">
+                                    <button type="button" onClick={() => { setIsRoleModalOpen(false); setEditingRole(null); }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold">Cancel</button>
+                                    <button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">{editingRole ? 'Update Role' : 'Create Role'}</button>
+                                </div>
                             </form>
                         </div>
                     </div>

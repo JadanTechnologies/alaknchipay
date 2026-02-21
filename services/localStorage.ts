@@ -1,5 +1,5 @@
 // Local Storage Service for AlkanchiPay
-import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseCategory, Branch, Notification, Customer, PurchaseOrder, ProductTransfer } from '../types';
+import { User, Product, Transaction, Category, ProductType, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseCategory, Branch, Notification, Customer, PurchaseOrder, ProductTransfer } from '../types';
 import { nanoid } from 'nanoid';
 
 const STORAGE_KEYS = {
@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   TRANSACTIONS: 'alkanchipay_transactions',
   DELETED_TRANSACTIONS: 'alkanchipay_deleted_transactions',
   CATEGORIES: 'alkanchipay_categories',
+  PRODUCT_TYPES: 'alkanchipay_product_types',
   EXPENSE_CATEGORIES: 'alkanchipay_expense_categories',
   BRANCHES: 'alkanchipay_branches',
   SETTINGS: 'alkanchipay_settings',
@@ -119,6 +120,11 @@ export const initializeLocalStorage = (): void => {
   // Initialize categories - START EMPTY
   if (!localStorage.getItem(STORAGE_KEYS.CATEGORIES)) {
     setItem(STORAGE_KEYS.CATEGORIES, []);
+  }
+
+  // Initialize product types - START EMPTY
+  if (!localStorage.getItem(STORAGE_KEYS.PRODUCT_TYPES)) {
+    setItem(STORAGE_KEYS.PRODUCT_TYPES, []);
   }
 
   // Initialize expense categories - START EMPTY
@@ -348,11 +354,27 @@ export const Transactions = {
 export const Categories = {
   getAll: (): Category[] => getItem(STORAGE_KEYS.CATEGORIES, []),
 
-  create: (name: string, storeId?: string): Category => {
-    const newCategory = { id: nanoid(), name, storeId };
+  getById: (id: string): Category | null => {
+    const categories = getItem(STORAGE_KEYS.CATEGORIES, []);
+    return categories.find(c => c.id === id) || null;
+  },
+
+  create: (name: string, description?: string, storeId?: string): Category => {
+    const newCategory = { id: nanoid(), name, description, storeId };
     const categories = getItem(STORAGE_KEYS.CATEGORIES, []);
     setItem(STORAGE_KEYS.CATEGORIES, [...categories, newCategory]);
     return newCategory;
+  },
+
+  update: (id: string, name: string, description?: string): Category | null => {
+    const categories = getItem(STORAGE_KEYS.CATEGORIES, []);
+    const index = categories.findIndex(c => c.id === id);
+    if (index === -1) return null;
+    
+    const updated = { ...categories[index], name, description };
+    categories[index] = updated;
+    setItem(STORAGE_KEYS.CATEGORIES, categories);
+    return updated;
   },
 
   delete: (id: string): boolean => {
@@ -360,6 +382,42 @@ export const Categories = {
     const filtered = categories.filter(c => c.id !== id);
     if (filtered.length === categories.length) return false;
     setItem(STORAGE_KEYS.CATEGORIES, filtered);
+    return true;
+  }
+};
+
+// Product Type Operations
+export const ProductTypes = {
+  getAll: (): ProductType[] => getItem(STORAGE_KEYS.PRODUCT_TYPES, []),
+
+  getById: (id: string): ProductType | null => {
+    const types = getItem(STORAGE_KEYS.PRODUCT_TYPES, []);
+    return types.find(t => t.id === id) || null;
+  },
+
+  create: (name: string, description?: string, storeId?: string): ProductType => {
+    const newType = { id: nanoid(), name, description, storeId };
+    const types = getItem(STORAGE_KEYS.PRODUCT_TYPES, []);
+    setItem(STORAGE_KEYS.PRODUCT_TYPES, [...types, newType]);
+    return newType;
+  },
+
+  update: (id: string, name: string, description?: string): ProductType | null => {
+    const types = getItem(STORAGE_KEYS.PRODUCT_TYPES, []);
+    const index = types.findIndex(t => t.id === id);
+    if (index === -1) return null;
+    
+    const updated = { ...types[index], name, description };
+    types[index] = updated;
+    setItem(STORAGE_KEYS.PRODUCT_TYPES, types);
+    return updated;
+  },
+
+  delete: (id: string): boolean => {
+    const types = getItem(STORAGE_KEYS.PRODUCT_TYPES, []);
+    const filtered = types.filter(t => t.id !== id);
+    if (filtered.length === types.length) return false;
+    setItem(STORAGE_KEYS.PRODUCT_TYPES, filtered);
     return true;
   }
 };

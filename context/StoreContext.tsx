@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Product, Transaction, Category, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod, Customer, PurchaseOrder, ProductTransfer } from '../types';
+import { User, Product, Transaction, Category, ProductType, UserRole, Permission, StoreSettings, ActivityLog, Expense, ExpenseStatus, ExpenseCategory, Role, Notification, NotificationType, RefundItem, Branch, PaymentMethod, Customer, PurchaseOrder, ProductTransfer } from '../types';
 import * as LocalStorage from '../services/localStorage';
 import { useAuth } from './AuthContext';
 import { nanoid } from 'nanoid';
@@ -36,8 +36,12 @@ interface StoreContextType {
   addProduct: (product: Product) => void;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
-  addCategory: (name: string) => void;
+  addCategory: (name: string, description?: string) => void;
+  updateCategory: (id: string, name: string, description?: string) => void;
   deleteCategory: (id: string) => void;
+  addProductType: (name: string, description?: string) => void;
+  updateProductType: (id: string, name: string, description?: string) => void;
+  deleteProductType: (id: string) => void;
   addExpenseCategory: (cat: ExpenseCategory) => void;
   deleteExpenseCategory: (id: string) => void;
   addTransaction: (transaction: Transaction) => void;
@@ -94,6 +98,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -124,6 +129,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setSettings(LocalStorage.Settings.get());
       setBranches(LocalStorage.Branches.getAll());
       setCategories(LocalStorage.Categories.getAll());
+      setProductTypes(LocalStorage.ProductTypes.getAll());
       const expCats = localStorage.getItem('alkanchipay_expense_categories');
       setExpenseCategories(expCats ? JSON.parse(expCats) : []);
       setExpenses(LocalStorage.Expenses.getAll());
@@ -147,11 +153,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [removeNotification]);
 
   // Wrappers for Local Storage Actions
-  const addCategory = (name: string) => {
-    if (!name) return;
-    const newCategory = LocalStorage.Categories.create(name);
+  const addCategory = (name: string, description?: string) => {
+    if (!name || !name.trim()) {
+      addNotification('Category name is required', 'error');
+      return;
+    }
+    const newCategory = LocalStorage.Categories.create(name.trim(), description?.trim());
     setCategories(prev => [...prev, newCategory]);
     addNotification(`Category "${name}" created`, 'success');
+  };
+
+  const updateCategory = (id: string, name: string, description?: string) => {
+    if (!name || !name.trim()) {
+      addNotification('Category name is required', 'error');
+      return;
+    }
+    const updated = LocalStorage.Categories.update(id, name.trim(), description?.trim());
+    if (updated) {
+      setCategories(prev => prev.map(c => c.id === id ? updated : c));
+      addNotification(`Category "${name}" updated`, 'success');
+    } else {
+      addNotification('Failed to update category', 'error');
+    }
   };
 
   const deleteCategory = (id: string) => {
@@ -160,6 +183,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addNotification('Category deleted', 'info');
     } else {
       addNotification('Failed to delete category', 'error');
+    }
+  };
+
+  const addProductType = (name: string, description?: string) => {
+    if (!name || !name.trim()) {
+      addNotification('Product type name is required', 'error');
+      return;
+    }
+    const newType = LocalStorage.ProductTypes.create(name.trim(), description?.trim());
+    setProductTypes(prev => [...prev, newType]);
+    addNotification(`Product type "${name}" created`, 'success');
+  };
+
+  const updateProductType = (id: string, name: string, description?: string) => {
+    if (!name || !name.trim()) {
+      addNotification('Product type name is required', 'error');
+      return;
+    }
+    const updated = LocalStorage.ProductTypes.update(id, name.trim(), description?.trim());
+    if (updated) {
+      setProductTypes(prev => prev.map(t => t.id === id ? updated : t));
+      addNotification(`Product type "${name}" updated`, 'success');
+    } else {
+      addNotification('Failed to update product type', 'error');
+    }
+  };
+
+  const deleteProductType = (id: string) => {
+    if (LocalStorage.ProductTypes.delete(id)) {
+      setProductTypes(prev => prev.filter(t => t.id !== id));
+      addNotification('Product type deleted', 'info');
+    } else {
+      addNotification('Failed to delete product type', 'error');
     }
   };
 
@@ -756,6 +812,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       settings,
       branches,
       categories,
+      productTypes,
       expenseCategories,
       notifications,
       activityLogs,
@@ -772,7 +829,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateCustomer,
       deleteCustomer,
       addCategory,
+      updateCategory,
       deleteCategory,
+      addProductType,
+      updateProductType,
+      deleteProductType,
       addExpenseCategory,
       deleteExpenseCategory,
       addTransaction,

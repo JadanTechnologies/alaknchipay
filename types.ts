@@ -84,6 +84,14 @@ export interface User {
 export interface Category {
   id: string;
   name: string;
+  description?: string;
+  storeId?: string;
+}
+
+export interface ProductType {
+  id: string;
+  name: string;
+  description?: string;
   storeId?: string;
 }
 
@@ -98,6 +106,7 @@ export interface Product {
   sku: string;
   name: string;
   category: string;
+  type?: string;
   costPrice: number;
   sellingPrice: number;
   stock: number;

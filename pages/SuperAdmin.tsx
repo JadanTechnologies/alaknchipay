@@ -267,26 +267,52 @@ export const SuperAdmin = () => {
     const handleSaveUser = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
+        
+        const name = (formData.get('name') as string)?.trim();
+        const username = (formData.get('username') as string)?.trim();
+        const password = formData.get('password') as string;
+        const role = formData.get('role') as string;
+        const storeId = (formData.get('storeId') as string) || undefined;
+        const expenseLimitStr = formData.get('expenseLimit') as string;
+        
+        // Validation
+        if (!name) {
+            addNotification('Name is required', 'error');
+            return;
+        }
+        if (!username) {
+            addNotification('Username is required', 'error');
+            return;
+        }
+        if (!editingUser && (!password || password.length < 6)) {
+            addNotification('Password must be at least 6 characters', 'error');
+            return;
+        }
+        if (!role) {
+            addNotification('Role is required', 'error');
+            return;
+        }
+        
         const userData: Partial<User> = editingUser ? {
             id: editingUser.id,
-            name: formData.get('name') as string,
-            username: formData.get('username') as string,
-            password: formData.get('password') as string,
-            role: formData.get('role') as string,
-            active: formData.get('status') === 'active',
-            storeId: formData.get('storeId') as string,
-            expenseLimit: parseFloat(formData.get('expenseLimit') as string) || 0
+            name,
+            username,
+            password: editingUser.password, // Keep existing password on edit
+            role,
+            active: formData.get('status') === 'active' || editingUser.active,
+            storeId,
+            expenseLimit: expenseLimitStr ? parseFloat(expenseLimitStr) : 0
         } : {
-            // Don't send ID for new users - let Supabase auto-generate
-            name: formData.get('name') as string,
-            username: formData.get('username') as string,
-            password: formData.get('password') as string,
-            role: formData.get('role') as string,
-            active: formData.get('status') === 'active',
-            storeId: formData.get('storeId') as string,
-            expenseLimit: parseFloat(formData.get('expenseLimit') as string) || 0
+            name,
+            username,
+            password,
+            role,
+            active: true,
+            storeId,
+            expenseLimit: expenseLimitStr ? parseFloat(expenseLimitStr) : 0
         };
-        if (editingUser) updateUser(userData); else addUser(userData);
+        
+        if (editingUser) updateUser(userData as User); else addUser(userData);
         setIsModalOpen(false); setEditingUser(null);
     };
 
@@ -1335,19 +1361,19 @@ export const SuperAdmin = () => {
                             <h2 className="text-xl font-bold text-white mb-4">{editingUser ? 'Edit User' : 'Add New User'}</h2>
                             <form onSubmit={handleSaveUser} className="space-y-4">
                                 <input name="name" defaultValue={editingUser?.name} placeholder="Full Name" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                <input name="username" defaultValue={editingUser?.username} placeholder="Username" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
-                                {!editingUser && <input name="password" type="password" placeholder="Password" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />}
+                                <input name="username" defaultValue={editingUser?.username} placeholder="Username/Email" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                                {!editingUser && <input name="password" type="password" placeholder="Password (min 6 chars)" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required minLength={6} />}
                                 <div className="grid grid-cols-2 gap-2">
-                                    <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded">
+                                    <select name="role" defaultValue={editingUser?.role || Role.CASHIER} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required>
                                         {roles.map(r => (
                                             <option key={r.id} value={r.name}>{r.name.replace(/_/g, ' ')}</option>
                                         ))}
                                     </select>
                                     <select name="storeId" defaultValue={editingUser?.storeId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="">No Branch (Global)</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
                                 </div>
-                                <div><label className="block text-xs font-bold text-gray-400 mb-1">Expense Limit ({settings.currency})</label><input type="number" name="expenseLimit" defaultValue={editingUser?.expenseLimit} placeholder="0.00" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" /></div>
+                                <div><label className="block text-xs font-bold text-gray-400 mb-1">Expense Limit ({settings.currency})</label><input type="number" name="expenseLimit" defaultValue={editingUser?.expenseLimit || 0} placeholder="0.00" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" step="0.01" min="0" /></div>
                                 {editingUser && (<div className="flex items-center gap-2"><input type="checkbox" name="status" defaultChecked={editingUser.active} value="active" /><label className="text-gray-300 text-sm">Active Account</label></div>)}
-                                <div className="flex gap-2 pt-2"><button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save</button></div>
+                                <div className="flex gap-2 pt-2"><button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">{editingUser ? 'Save Changes' : 'Create User'}</button></div>
                             </form>
                         </div>
                     </div>

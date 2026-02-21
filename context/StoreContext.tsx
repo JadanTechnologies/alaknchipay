@@ -231,14 +231,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // User CRUD Operations
   const addUser = (userData: Partial<User>) => {
+    // Validation checks
+    if (!userData.name || !userData.name.trim()) {
+      addNotification('User name is required', 'error');
+      return;
+    }
+    if (!userData.username || !userData.username.trim()) {
+      addNotification('Username is required', 'error');
+      return;
+    }
+    if (!userData.password || userData.password.length < 6) {
+      addNotification('Password must be at least 6 characters', 'error');
+      return;
+    }
+    if (!LocalStorage.Users.isUsernameUnique(userData.username)) {
+      addNotification('Username already exists', 'error');
+      return;
+    }
+
     const newUser = LocalStorage.Users.create({
-      name: userData.name || '',
-      username: userData.username || '',
-      password: userData.password || '',
+      name: userData.name.trim(),
+      username: userData.username.trim(),
+      password: userData.password,
       role: userData.role || 'CASHIER',
       active: userData.active ?? true,
-      storeId: userData.storeId,
-      expenseLimit: userData.expenseLimit || 0
+      storeId: userData.storeId || undefined, // Convert empty string to undefined
+      expenseLimit: parseFloat(String(userData.expenseLimit)) || 0
     });
 
     setUsers(prev => [...prev, newUser]);
@@ -246,7 +264,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateUser = (userData: User) => {
-    const updated = LocalStorage.Users.update(userData.id, userData);
+    // Validation checks
+    if (!userData.name || !userData.name.trim()) {
+      addNotification('User name is required', 'error');
+      return;
+    }
+    if (!userData.username || !userData.username.trim()) {
+      addNotification('Username is required', 'error');
+      return;
+    }
+    if (!LocalStorage.Users.isUsernameUnique(userData.username, userData.id)) {
+      addNotification('Username already exists', 'error');
+      return;
+    }
+
+    const updated = LocalStorage.Users.update(userData.id, {
+      ...userData,
+      name: userData.name.trim(),
+      username: userData.username.trim(),
+      storeId: userData.storeId || undefined // Convert empty string to undefined
+    });
     if (updated) {
       setUsers(prev => prev.map(u => u.id === userData.id ? updated : u));
       addNotification(`User "${userData.name}" updated successfully`, 'success');

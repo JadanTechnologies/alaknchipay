@@ -174,6 +174,17 @@ export const Users = {
     return users.find(u => u.id === id) || null;
   },
 
+  getByUsername: (username: string): User | null => {
+    const users = getItem(STORAGE_KEYS.USERS, []);
+    return users.find(u => u.username === username) || null;
+  },
+
+  isUsernameUnique: (username: string, excludeId?: string): boolean => {
+    const users = getItem(STORAGE_KEYS.USERS, []);
+    const existing = users.find(u => u.username === username);
+    return !existing || (excludeId && existing.id === excludeId);
+  },
+
   create: (user: Omit<User, 'id'>): User => {
     const newUser = { ...user, id: nanoid() };
     const users = getItem(STORAGE_KEYS.USERS, []);

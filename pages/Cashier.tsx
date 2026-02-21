@@ -624,7 +624,10 @@ export const Cashier = () => {
                             <button key={product.id} onClick={() => addToCart(product)} disabled={product.stock <= 0} className={`text-left p-4 rounded-xl border transition ${product.stock <= 0 ? 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed' : 'bg-gray-700 border-gray-600 hover:border-blue-500 hover:shadow-md'}`}>
                                 <div className="h-24 bg-gray-800 rounded-lg mb-3 flex items-center justify-center"><Icons.Inventory size={32} className="text-gray-500" /></div>
                                 <h3 className="font-bold text-gray-100 truncate">{product.name}</h3>
-                                {product.description && <p className="text-xs text-gray-400 mt-1 truncate">{product.description}</p>}
+                                <div className="flex items-center gap-2 mt-1 mb-1">
+                                    <span className="text-xs bg-blue-600/30 text-blue-300 px-2 py-0.5 rounded">{product.category}</span>
+                                </div>
+                                {product.description && <p className="text-xs text-gray-400 truncate">{product.description}</p>}
                                 <div className="flex justify-between items-center mt-2">
                                     <span className="text-blue-400 font-bold">{settings.currency}{product.sellingPrice}</span>
                                     <span className={`text-xs px-2 py-1 rounded ${product.stock < product.minStockAlert ? 'bg-red-900 text-red-400' : 'bg-green-900 text-green-400'}`}>{product.stock}</span>

@@ -442,6 +442,7 @@ export const Admin = () => {
           id: editingProduct ? editingProduct.id : nanoid(),
           sku: formData.get('sku') as string,
           name: formData.get('name') as string,
+          description: formData.get('description') as string,
           category: formData.get('category') as string,
           costPrice: parseFloat(formData.get('costPrice') as string),
           sellingPrice: parseFloat(formData.get('sellingPrice') as string),
@@ -1015,6 +1016,7 @@ export const Admin = () => {
                       <h2 className="text-xl font-bold text-white mb-4">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
                       <form onSubmit={handleSaveProduct} className="grid grid-cols-2 gap-4">
                           <input name="name" defaultValue={editingProduct?.name} placeholder="Product Name" className="col-span-2 w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
+                          <textarea name="description" defaultValue={editingProduct?.description || ''} placeholder="Product Description" className="col-span-2 w-full bg-gray-900 border border-gray-600 text-white p-2 rounded resize-none" rows={3} />
                           <input name="sku" defaultValue={editingProduct?.sku} placeholder="SKU Code" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                           <select name="category" defaultValue={editingProduct?.category || 'General'} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="General">General</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
                           <input type="number" name="costPrice" defaultValue={editingProduct?.costPrice} placeholder="Cost Price" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required step="0.01" />

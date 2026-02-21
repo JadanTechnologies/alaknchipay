@@ -105,6 +105,7 @@ export interface Product {
   id: string;
   sku: string;
   name: string;
+  description?: string;
   category: string;
   type?: string;
   costPrice: number;

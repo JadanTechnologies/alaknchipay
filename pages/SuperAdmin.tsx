@@ -365,6 +365,7 @@ export const SuperAdmin = () => {
             id: editingProduct.id,
             sku: formData.get('sku') as string,
             name: formData.get('name') as string,
+            description: formData.get('description') as string,
             category: formData.get('category') as string,
             costPrice: parseFloat(formData.get('costPrice') as string),
             sellingPrice: parseFloat(formData.get('sellingPrice') as string),
@@ -375,6 +376,7 @@ export const SuperAdmin = () => {
             // Don't send ID for new products - let Supabase auto-generate
             sku: formData.get('sku') as string,
             name: formData.get('name') as string,
+            description: formData.get('description') as string,
             category: formData.get('category') as string,
             costPrice: parseFloat(formData.get('costPrice') as string),
             sellingPrice: parseFloat(formData.get('sellingPrice') as string),
@@ -1551,12 +1553,13 @@ export const SuperAdmin = () => {
                 {/* Product Modal */}
                 {isProductModalOpen && (
                     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-                        <div className="bg-gray-800 p-8 rounded-xl w-[500px] border border-gray-700">
+                        <div className="bg-gray-800 p-8 rounded-xl w-[500px] border border-gray-700 max-h-[90vh] overflow-y-auto">
                             <h2 className="text-xl font-bold text-white mb-4">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
                             <form onSubmit={handleSaveProduct} className="grid grid-cols-2 gap-4">
                                 <input name="name" defaultValue={editingProduct?.name} placeholder="Product Name" className="col-span-2 w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                                 <input name="sku" defaultValue={editingProduct?.sku} placeholder="SKU Code" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                                 <select name="category" defaultValue={editingProduct?.category || 'General'} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded"><option value="General">General</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
+                                <textarea name="description" defaultValue={editingProduct?.description || ''} placeholder="Product Description" className="col-span-2 w-full bg-gray-900 border border-gray-600 text-white p-2 rounded h-20 resize-none" />
                                 <input type="number" name="costPrice" defaultValue={editingProduct?.costPrice} placeholder="Cost Price" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required step="0.01" />
                                 <input type="number" name="sellingPrice" defaultValue={editingProduct?.sellingPrice} placeholder="Selling Price" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required step="0.01" />
                                 <input type="number" name="stock" defaultValue={editingProduct?.stock} placeholder="Initial Stock" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />

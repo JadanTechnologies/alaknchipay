@@ -125,9 +125,33 @@ export const Cashier = () => {
 
   const cashInHand = paymentBreakdown[PaymentMethod.CASH];
 
+  // Play sound when item is added to cart
+  const playAddToCartSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      
+      gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (e) {
+      console.log('Audio context not available');
+    }
+  };
+
   // --- Handlers ---
   const addToCart = (product: Product) => {
     if (product.stock <= 0) return;
+    playAddToCartSound();
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) { return prev.map(item => item.id === product.id ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) } : item); }
@@ -621,16 +645,16 @@ export const Cashier = () => {
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start">
                         {filteredProducts.map(product => (
-                            <button key={product.id} onClick={() => addToCart(product)} disabled={product.stock <= 0} className={`text-left p-4 rounded-xl border transition ${product.stock <= 0 ? 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed' : 'bg-gray-700 border-gray-600 hover:border-blue-500 hover:shadow-md'}`}>
-                                <div className="h-24 bg-gray-800 rounded-lg mb-3 flex items-center justify-center"><Icons.Inventory size={32} className="text-gray-500" /></div>
-                                <h3 className="font-bold text-gray-100 truncate">{product.name}</h3>
-                                <div className="flex items-center gap-2 mt-1 mb-1">
-                                    <span className="text-xs bg-blue-600/30 text-blue-300 px-2 py-0.5 rounded">{product.category}</span>
+                            <button key={product.id} onClick={() => addToCart(product)} disabled={product.stock <= 0} className={`text-left p-3 rounded-lg border transition flex flex-col ${product.stock <= 0 ? 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed' : 'bg-gray-700 border-gray-600 hover:border-blue-500 hover:shadow-lg hover:bg-gray-650'}`}>
+                                <div className="h-20 bg-gray-800 rounded mb-2 flex items-center justify-center"><Icons.Inventory size={28} className="text-gray-500" /></div>
+                                <h3 className="font-bold text-sm text-gray-100 truncate">{product.name}</h3>
+                                <div className="mt-1 mb-1">
+                                    <span className="inline-block text-xs bg-blue-600 text-white px-2 py-0.5 rounded font-semibold">{product.category}</span>
                                 </div>
-                                {product.description && <p className="text-xs text-gray-400 truncate">{product.description}</p>}
-                                <div className="flex justify-between items-center mt-2">
-                                    <span className="text-blue-400 font-bold">{settings.currency}{product.sellingPrice}</span>
-                                    <span className={`text-xs px-2 py-1 rounded ${product.stock < product.minStockAlert ? 'bg-red-900 text-red-400' : 'bg-green-900 text-green-400'}`}>{product.stock}</span>
+                                {product.description && <p className="text-xs text-gray-300 line-clamp-2 mb-2">{product.description}</p>}
+                                <div className="mt-auto pt-2 border-t border-gray-600 flex justify-between items-center">
+                                    <span className="text-blue-300 font-bold text-sm">{settings.currency}{product.sellingPrice}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded font-semibold ${product.stock < product.minStockAlert ? 'bg-red-900 text-red-300' : 'bg-green-900 text-green-300'}`}>Stock: {product.stock}</span>
                                 </div>
                             </button>
                         ))}

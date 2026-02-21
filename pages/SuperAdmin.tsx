@@ -347,16 +347,19 @@ export const SuperAdmin = () => {
     const handleSaveBranch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
+        const managerId = formData.get('managerId') as string;
         const branchData: Partial<Branch> = editingBranch ? {
             id: editingBranch.id,
             name: formData.get('name') as string,
             address: formData.get('address') as string,
-            phone: formData.get('phone') as string
+            phone: formData.get('phone') as string,
+            managerId: managerId || undefined
         } : {
             // Don't send ID for new branches - let Supabase auto-generate
             name: formData.get('name') as string,
             address: formData.get('address') as string,
-            phone: formData.get('phone') as string
+            phone: formData.get('phone') as string,
+            managerId: managerId || undefined
         };
         if (editingBranch) updateBranch(branchData); else addBranch(branchData);
         setIsBranchModalOpen(false); setEditingBranch(null);
@@ -1517,7 +1520,10 @@ export const SuperAdmin = () => {
                                 <input name="name" defaultValue={editingBranch?.name} placeholder="Branch Name" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                                 <input name="address" defaultValue={editingBranch?.address} placeholder="Address" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" required />
                                 <input name="phone" defaultValue={editingBranch?.phone} placeholder="Phone" className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" />
-                                {/* Manager field removed */}
+                                <select name="managerId" defaultValue={editingBranch?.managerId || ''} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded">
+                                    <option value="">-- Select Manager --</option>
+                                    {users.filter(u => u.role === 'BRANCH_MANAGER' || u.role === 'ADMIN').map(u => <option key={u.id} value={u.id}>{u.name} (@{u.username})</option>)}
+                                </select>
                                 <div className="flex gap-2"><button type="button" onClick={() => setIsBranchModalOpen(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Save</button></div>
                             </form>
                         </div>

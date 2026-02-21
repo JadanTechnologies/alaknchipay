@@ -202,6 +202,9 @@ export const SuperAdmin = () => {
         const totalExpenses = bExpenses.reduce((sum, e) => sum + e.amount, 0);
         const netProfit = revenue - totalExpenses;
 
+        // Format currency for PDF (use NGN instead of special character)
+        const formatCurrencyPDF = (amount: number) => `NGN ${amount.toFixed(2)}`;
+
         // Prepare Data
         const doc = new jsPDF();
         doc.setFontSize(18); doc.text(settings.name, 14, 15);
@@ -212,9 +215,9 @@ export const SuperAdmin = () => {
         autoTable(doc, {
             head: [['Metric', 'Amount']],
             body: [
-                ['Total Revenue (Sales)', `${settings.currency}${revenue.toFixed(2)}`],
-                ['Total Operational Expenses', `${settings.currency}${totalExpenses.toFixed(2)}`],
-                ['Net Profit', `${settings.currency}${netProfit.toFixed(2)}`]
+                ['Total Revenue (Sales)', formatCurrencyPDF(revenue)],
+                ['Total Operational Expenses', formatCurrencyPDF(totalExpenses)],
+                ['Net Profit', formatCurrencyPDF(netProfit)]
             ],
             startY: 40,
             theme: 'grid',
@@ -231,7 +234,7 @@ export const SuperAdmin = () => {
             doc.text("Expense Breakdown", 14, (doc as any).lastAutoTable.finalY + 10);
             autoTable(doc, {
                 head: [['Category', 'Amount']],
-                body: Object.entries(expenseBreakdown).map(([k, v]: any) => [k, `${settings.currency}${v.toFixed(2)}`]),
+                body: Object.entries(expenseBreakdown).map(([k, v]: any) => [k, formatCurrencyPDF(v)]),
                 startY: (doc as any).lastAutoTable.finalY + 15,
                 theme: 'grid'
             });

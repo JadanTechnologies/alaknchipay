@@ -666,15 +666,19 @@ export const Backup = {
   create: (): string => {
     const backup = {
       timestamp: new Date().toISOString(),
+      version: '1.0',
       data: {
         users: Users.getAll(),
         products: Products.getAll(),
         transactions: Transactions.getAll(true),
         deletedTransactions: getItem(STORAGE_KEYS.DELETED_TRANSACTIONS, []),
         categories: Categories.getAll(),
+        productTypes: ProductTypes.getAll(),
         branches: Branches.getAll(),
         expenses: Expenses.getAll(),
+        expenseCategories: getItem(STORAGE_KEYS.EXPENSE_CATEGORIES, []),
         roles: Roles.getAll(),
+        permissions: getItem(STORAGE_KEYS.PERMISSIONS, []),
         settings: Settings.get(),
         customers: getItem(STORAGE_KEYS.CUSTOMERS, []),
         activityLogs: ActivityLogs.getAll(),
@@ -695,9 +699,12 @@ export const Backup = {
       setItem(STORAGE_KEYS.TRANSACTIONS, backup.data.transactions || []);
       setItem(STORAGE_KEYS.DELETED_TRANSACTIONS, backup.data.deletedTransactions || []);
       setItem(STORAGE_KEYS.CATEGORIES, backup.data.categories || []);
+      setItem(STORAGE_KEYS.PRODUCT_TYPES, backup.data.productTypes || []);
       setItem(STORAGE_KEYS.BRANCHES, backup.data.branches || []);
       setItem(STORAGE_KEYS.EXPENSES, backup.data.expenses || []);
+      setItem(STORAGE_KEYS.EXPENSE_CATEGORIES, backup.data.expenseCategories || []);
       setItem(STORAGE_KEYS.ROLES, backup.data.roles || []);
+      setItem(STORAGE_KEYS.PERMISSIONS, backup.data.permissions || []);
       setItem(STORAGE_KEYS.SETTINGS, backup.data.settings || {});
       setItem(STORAGE_KEYS.ACTIVITY_LOGS, backup.data.activityLogs || []);
       setItem(STORAGE_KEYS.CUSTOMERS, backup.data.customers || []);

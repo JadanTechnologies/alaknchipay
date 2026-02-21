@@ -68,6 +68,7 @@ import {
   CloudDownload,
   Key,
   Send,
+  Edit2,
 } from 'lucide-react';
 
 export const Icons = {
@@ -146,7 +147,9 @@ export const Icons = {
   Unlock: Unlock,
   Password: Key,
   DownloadCloud: CloudDownload,
-  Send: Send
+  Send: Send,
+  Edit: Edit2,
+  Edit2: Edit2
 };
 
 // Debug logging for undefined icons

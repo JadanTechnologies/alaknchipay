@@ -1127,21 +1127,40 @@ export const SuperAdmin = () => {
                 )}
 
                 {activeTab === 'profile' && (
-                    <div className="max-w-md mx-auto bg-gray-800 rounded-xl border border-gray-700 p-8">
-                        <div className="text-center mb-6">
-                            <div className="w-24 h-24 bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center border-4 border-gray-600"><Icons.User size={48} className="text-gray-400" /></div>
-                            <h2 className="text-2xl font-bold text-white">{user?.name}</h2>
-                            <p className="text-red-400 font-bold">SUPER ADMIN</p>
+                    <div className="max-w-2xl mx-auto">
+                        <div className="grid grid-cols-2 gap-6">
+                            {/* Profile Card */}
+                            <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
+                                <div className="text-center mb-6">
+                                    <div className="w-24 h-24 bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center border-4 border-gray-600"><Icons.User size={48} className="text-gray-400" /></div>
+                                    <h2 className="text-2xl font-bold text-white">{user?.name}</h2>
+                                    <p className="text-red-400 font-bold">SUPER ADMIN</p>
+                                </div>
+                                {isEditingProfile ? (
+                                    <form onSubmit={handleUpdateProfile} className="space-y-4">
+                                        <input name="name" defaultValue={user?.name} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Full Name" required />
+                                        <input name="username" defaultValue={user?.username} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Username" required />
+                                        <div className="flex gap-2"><button type="button" onClick={() => setIsEditingProfile(false)} className="flex-1 bg-gray-700 text-white py-2 rounded">Cancel</button><button className="flex-1 bg-blue-600 text-white py-2 rounded font-bold">Save</button></div>
+                                    </form>
+                                ) : (
+                                    <button onClick={() => setIsEditingProfile(true)} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold">Edit Profile</button>
+                                )}
+                            </div>
+
+                            {/* Password & Security Card */}
+                            <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
+                                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Icons.Lock size={20} /> Security</h3>
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
+                                        <p className="text-gray-400 text-xs uppercase font-bold mb-2">Last Password Change</p>
+                                        <p className="text-white">Never</p>
+                                    </div>
+                                    <button onClick={() => { setIsPasswordModalOpen(true); setPasswordChangeUserId(user?.id || null); setNewPassword(''); setConfirmPassword(''); }} className="w-full bg-yellow-600 hover:bg-yellow-500 text-white py-2 rounded font-bold flex items-center justify-center gap-2">
+                                        <Icons.Edit size={16} /> Change Password
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        {isEditingProfile ? (
-                            <form onSubmit={handleUpdateProfile} className="space-y-4">
-                                <input name="name" defaultValue={user?.name} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Full Name" />
-                                <input name="username" defaultValue={user?.username} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Username" />
-                                <div className="flex gap-2"><button type="button" onClick={() => setIsEditingProfile(false)} className="flex-1 bg-gray-700 text-white py-2 rounded">Cancel</button><button className="flex-1 bg-blue-600 text-white py-2 rounded font-bold">Save</button></div>
-                            </form>
-                        ) : (
-                            <button onClick={() => setIsEditingProfile(true)} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold">Edit Profile</button>
-                        )}
                     </div>
                 )}
 

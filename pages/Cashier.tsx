@@ -9,7 +9,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const Cashier = () => {
-    const { products, user, users, addTransaction, updateTransaction, transactions, settings, logout, processRefund, branches, categories, addNotification, expenses, addExpense, expenseCategories, customers, addCustomer } = useStore();
+    const { products, user, users, addTransaction, updateTransaction, transactions, settings, logout, processRefund, branches, categories, addNotification, expenses, addExpense, expenseCategories, customers, addCustomer, updateUserPassword } = useStore();
   const [activeTab, setActiveTab] = useState<'pos' | 'dashboard' | 'history' | 'debts' | 'inventory' | 'endofday' | 'returns' | 'profile' | 'expenses'>('pos');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -17,6 +17,9 @@ export const Cashier = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
     const [customerName, setCustomerName] = useState('');
@@ -933,29 +936,68 @@ export const Cashier = () => {
         )}
 
         {activeTab === 'profile' && (
-            <div className="max-w-md mx-auto bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
-                <div className="w-24 h-24 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400 border-4 border-gray-600"><Icons.User size={48}/></div>
-                <h2 className="text-2xl font-bold text-white">{user?.name}</h2>
-                <p className="text-gray-400">{user?.role} • {currentBranch?.name}</p>
-                
-                <div className="mt-8 space-y-4 text-left">
-                     <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
-                         <p className="text-gray-400 text-xs uppercase font-bold">Username</p>
-                         <p className="text-white font-medium">{user?.username}</p>
-                     </div>
-                     <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
-                         <p className="text-gray-400 text-xs uppercase font-bold">Expense Limit</p>
-                         <p className="text-white font-medium">{user?.expenseLimit ? `${settings.currency}${user.expenseLimit}` : 'None'}</p>
-                     </div>
-                     <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
-                         <p className="text-gray-400 text-xs uppercase font-bold">Branch Manager</p>
-                         <p className="text-blue-400 font-medium">{users.find(u => u.id === currentBranch?.managerId)?.name || 'N/A'}</p>
-                     </div>
+            <div className="max-w-2xl mx-auto">
+                <div className="grid grid-cols-2 gap-6">
+                    {/* Profile Card */}
+                    <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+                        <div className="w-24 h-24 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400 border-4 border-gray-600"><Icons.User size={48}/></div>
+                        <h2 className="text-2xl font-bold text-white">{user?.name}</h2>
+                        <p className="text-gray-400">{user?.role} • {currentBranch?.name}</p>
+                        
+                        <div className="mt-8 space-y-4 text-left">
+                             <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
+                                 <p className="text-gray-400 text-xs uppercase font-bold">Username</p>
+                                 <p className="text-white font-medium">{user?.username}</p>
+                             </div>
+                             <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
+                                 <p className="text-gray-400 text-xs uppercase font-bold">Expense Limit</p>
+                                 <p className="text-white font-medium">{user?.expenseLimit ? `${settings.currency}${user.expenseLimit}` : 'None'}</p>
+                             </div>
+                             <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
+                                 <p className="text-gray-400 text-xs uppercase font-bold">Branch Manager</p>
+                                 <p className="text-blue-400 font-medium">{users.find(u => u.id === currentBranch?.managerId)?.name || 'N/A'}</p>
+                             </div>
+                        </div>
+                    </div>
+
+                    {/* Password & Security Card */}
+                    <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Icons.Lock size={20} /> Security</h3>
+                        <div className="space-y-4">
+                            <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
+                                <p className="text-gray-400 text-xs uppercase font-bold mb-2">Last Password Change</p>
+                                <p className="text-white">Never</p>
+                            </div>
+                             <button onClick={() => { setIsPasswordModalOpen(true); setNewPassword(''); setConfirmPassword(''); }} className="w-full bg-yellow-600 hover:bg-yellow-500 text-white py-2 rounded font-bold flex items-center justify-center gap-2">
+                                <Icons.Edit size={16} /> Change Password
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         )}
 
       </main>
+
+      {/* Password Change Modal */}
+      {isPasswordModalOpen && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+              <div className="bg-gray-800 p-6 rounded-xl w-[400px] border border-gray-700">
+                  <h2 className="text-xl font-bold text-white mb-4">Change Password</h2>
+                  <form onSubmit={(e) => { e.preventDefault(); if (!user) return; if (newPassword.length < 6) { addNotification('Password must be at least 6 characters', 'error'); return; } if (newPassword !== confirmPassword) { addNotification('Passwords do not match', 'error'); return; } updateUserPassword(user.id, newPassword); setIsPasswordModalOpen(false); setNewPassword(''); setConfirmPassword(''); addNotification('Password changed successfully', 'success'); }} className="space-y-4">
+                      <div>
+                          <label className="block text-sm text-gray-400 mb-1">New Password</label>
+                          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Enter new password" minLength={6} required />
+                      </div>
+                      <div>
+                          <label className="block text-sm text-gray-400 mb-1">Confirm Password</label>
+                          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Confirm new password" minLength={6} required />
+                      </div>
+                      <div className="flex gap-2 pt-2"><button type="button" onClick={() => { setIsPasswordModalOpen(false); setNewPassword(''); setConfirmPassword(''); }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded font-bold">Change</button></div>
+                  </form>
+              </div>
+          </div>
+      )}
 
       {/* Checkout/Success/Recall Modals... (omitted, preserved) */}
        {isCheckingOut && (

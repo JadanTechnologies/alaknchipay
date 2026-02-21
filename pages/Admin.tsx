@@ -12,7 +12,7 @@ export const Admin = () => {
     const {
     user, products: allProducts, transactions: allTransactions,
     addProduct, updateProduct, deleteProduct, settings, updateBranch,
-    users, logout, branches, categories, addCategory, deleteCategory, updateUser,
+    users, logout, branches, categories, addCategory, deleteCategory, updateUser, updateUserPassword,
     expenses, addExpense, updateExpense, updateTransaction, processRefund, expenseCategories,
     createBackup, restoreBackup, addNotification,
         deletedTransactions, getDeletedTransactions, restoreTransaction, purgeTransaction, deleteTransaction,
@@ -54,6 +54,9 @@ export const Admin = () => {
   // Modals
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Expense State
   const [newExpenseAmount, setNewExpenseAmount] = useState('');
@@ -68,6 +71,8 @@ export const Admin = () => {
   // Return State
   const [returnInvoiceId, setReturnInvoiceId] = useState('');
   const [returnTransaction, setReturnTransaction] = useState<Transaction | null>(null);
+
+  // Password Modal shown at end of file
   const [itemsToReturn, setItemsToReturn] = useState<{itemId: string, qty: number}[]>([]);
   const [returnReason, setReturnReason] = useState('');
   const [returnCondition, setReturnCondition] = useState('Good');
@@ -450,6 +455,7 @@ export const Admin = () => {
   
   const handleAddCategory = (e: React.FormEvent) => { e.preventDefault(); if(newCategoryName.trim()) { addCategory(newCategoryName.trim()); setNewCategoryName(''); }};
   const handleUpdateProfile = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); if (!user) return; const formData = new FormData(e.currentTarget); updateUser({ ...user, name: formData.get('name') as string, username: formData.get('username') as string }); setIsEditingProfile(false); };
+  const handleChangePassword = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); if (!user) return; if (newPassword.length < 6) { addNotification('Password must be at least 6 characters', 'error'); return; } if (newPassword !== confirmPassword) { addNotification('Passwords do not match', 'error'); return; } updateUserPassword(user.id, newPassword); setIsPasswordModalOpen(false); setNewPassword(''); setConfirmPassword(''); addNotification('Password changed successfully', 'success'); };
 
   // Return Logic
    const handleSearchForReturn = () => {
@@ -896,21 +902,40 @@ export const Admin = () => {
          )}
          
          {activeTab === 'profile' && (
-             <div className="max-w-md mx-auto bg-gray-800 rounded-xl border border-gray-700 p-8">
-                 <div className="text-center mb-6">
-                     <div className="w-24 h-24 bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center"><Icons.User size={48} className="text-gray-400"/></div>
-                     <h2 className="text-2xl font-bold text-white">{user?.name}</h2>
-                     <p className="text-gray-400">@{user?.username} • Admin</p>
+             <div className="max-w-2xl mx-auto">
+                 <div className="grid grid-cols-2 gap-6">
+                     {/* Profile Card */}
+                     <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
+                         <div className="text-center mb-6">
+                             <div className="w-24 h-24 bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center"><Icons.User size={48} className="text-gray-400"/></div>
+                             <h2 className="text-2xl font-bold text-white">{user?.name}</h2>
+                             <p className="text-gray-400">@{user?.username} • Admin</p>
+                         </div>
+                         {isEditingProfile ? (
+                             <form onSubmit={handleUpdateProfile} className="space-y-4">
+                                 <input name="name" defaultValue={user?.name} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Full Name" required/>
+                                 <input name="username" defaultValue={user?.username} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Username" required/>
+                                 <div className="flex gap-2"><button type="button" onClick={()=>setIsEditingProfile(false)} className="flex-1 bg-gray-700 text-white py-2 rounded">Cancel</button><button className="flex-1 bg-blue-600 text-white py-2 rounded font-bold">Save</button></div>
+                             </form>
+                         ) : (
+                             <button onClick={()=>setIsEditingProfile(true)} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold">Edit Profile</button>
+                         )}
+                     </div>
+
+                     {/* Password & Security Card */}
+                     <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
+                         <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Icons.Lock size={20} /> Security</h3>
+                         <div className="space-y-4">
+                             <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
+                                 <p className="text-gray-400 text-xs uppercase font-bold mb-2">Last Password Change</p>
+                                 <p className="text-white">Never</p>
+                             </div>
+                             <button onClick={() => { setIsPasswordModalOpen(true); setNewPassword(''); setConfirmPassword(''); }} className="w-full bg-yellow-600 hover:bg-yellow-500 text-white py-2 rounded font-bold flex items-center justify-center gap-2">
+                                 <Icons.Edit size={16} /> Change Password
+                             </button>
+                         </div>
+                     </div>
                  </div>
-                 {isEditingProfile ? (
-                     <form onSubmit={handleUpdateProfile} className="space-y-4">
-                         <input name="name" defaultValue={user?.name} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Full Name"/>
-                         <input name="username" defaultValue={user?.username} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Username"/>
-                         <div className="flex gap-2"><button type="button" onClick={()=>setIsEditingProfile(false)} className="flex-1 bg-gray-700 text-white py-2 rounded">Cancel</button><button className="flex-1 bg-blue-600 text-white py-2 rounded font-bold">Save</button></div>
-                     </form>
-                 ) : (
-                     <button onClick={()=>setIsEditingProfile(true)} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold">Edit Profile</button>
-                 )}
              </div>
          )}
 
@@ -961,6 +986,26 @@ export const Admin = () => {
                  )}
              </div>
          )}
+
+      {/* Password Change Modal */}
+      {isPasswordModalOpen && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+              <div className="bg-gray-800 p-6 rounded-xl w-[400px] border border-gray-700">
+                  <h2 className="text-xl font-bold text-white mb-4">Change Password</h2>
+                  <form onSubmit={handleChangePassword} className="space-y-4">
+                      <div>
+                          <label className="block text-sm text-gray-400 mb-1">New Password</label>
+                          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Enter new password" minLength={6} required />
+                      </div>
+                      <div>
+                          <label className="block text-sm text-gray-400 mb-1">Confirm Password</label>
+                          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded" placeholder="Confirm new password" minLength={6} required />
+                      </div>
+                      <div className="flex gap-2 pt-2"><button type="button" onClick={() => { setIsPasswordModalOpen(false); setNewPassword(''); setConfirmPassword(''); }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button><button type="submit" className="flex-1 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded font-bold">Change</button></div>
+                  </form>
+              </div>
+          </div>
+      )}
 
       </main>
       

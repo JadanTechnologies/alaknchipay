@@ -382,19 +382,69 @@ export const Admin = () => {
         autoTable(doc, {
             head: [['Metric', 'Value']],
             body: [
-                ['Total Sales', detailedReportData.grandTotalSales.toFixed(2)],
+                ['Total Sales (Before Discount)', detailedReportData.grandTotalSales.toFixed(2)],
+                ['Total Discount', detailedReportData.grandDiscount.toFixed(2)],
+                ['Total Sales (After Discount)', detailedReportData.grandTotalBalance.toFixed(2)],
+                ['Total Cost', detailedReportData.grandTotalCost.toFixed(2)],
                 ['Total Profit', detailedReportData.grandTotalProfit.toFixed(2)],
                 ['Cash', breakdown[PaymentMethod.CASH].toFixed(2)],
                 ['POS', breakdown[PaymentMethod.POS].toFixed(2)],
-                ['Transfer', breakdown[PaymentMethod.TRANSFER].toFixed(2)]
+                ['Transfer', breakdown[PaymentMethod.TRANSFER].toFixed(2)],
+                ['Credit', breakdown[PaymentMethod.CREDIT].toFixed(2)]
             ],
             startY: (doc as any).lastAutoTable.finalY + 15,
             theme: 'grid'
         });
     } else if (reportViewMode === 'transactions') {
-        const columns = ["Date", "Tx ID", "Cashier", "Method", "Total", "Status"];
-        const rows = filteredReportTransactions.map(t => [new Date(t.date).toLocaleString(), t.id.substring(0,8), t.cashierName, t.paymentMethod, t.total.toFixed(2), t.status]);
-        autoTable(doc, { head: [columns], body: rows, startY: 35 });
+        // Enhanced transactions report with item details
+        let sn = 1;
+        let grandTotalBeforeDiscount = 0;
+        let grandTotalDiscount = 0;
+        let grandTotalAfterDiscount = 0;
+        
+        const rows = filteredReportTransactions.flatMap(t => {
+            const itemDiscountShare = t.discount / (t.items.length || 1);
+            return t.items.map(item => {
+                const itemTotal = item.sellingPrice * item.quantity;
+                const itemDiscount = itemDiscountShare;
+                const itemBalance = itemTotal - itemDiscount;
+                
+                grandTotalBeforeDiscount += itemTotal;
+                grandTotalDiscount += itemDiscount;
+                grandTotalAfterDiscount += itemBalance;
+                
+                return [
+                    sn++,
+                    item.name,
+                    item.quantity,
+                    itemDiscount.toFixed(2),
+                    itemBalance.toFixed(2),
+                    t.cashierName,
+                    new Date(t.date).toLocaleString(),
+                    t.status
+                ];
+            });
+        });
+        
+        const columns = ["S/N", "Item Name", "Qty Sold", "Discount", "Balance After Discount", "Cashier", "Date", "Status"];
+        autoTable(doc, { head: [columns], body: rows, startY: 35, styles: { fontSize: 8 } });
+        
+        // Add grand total breakdown
+        doc.text("Grand Total Breakdown", 14, (doc as any).lastAutoTable.finalY + 10);
+        autoTable(doc, {
+            head: [['Metric', 'Value']],
+            body: [
+                ['Total Before Discount', grandTotalBeforeDiscount.toFixed(2)],
+                ['Total Discount', grandTotalDiscount.toFixed(2)],
+                ['Grand Total (After Discount)', grandTotalAfterDiscount.toFixed(2)],
+                ['Cash', breakdown[PaymentMethod.CASH].toFixed(2)],
+                ['POS', breakdown[PaymentMethod.POS].toFixed(2)],
+                ['Transfer', breakdown[PaymentMethod.TRANSFER].toFixed(2)],
+                ['Credit', breakdown[PaymentMethod.CREDIT].toFixed(2)]
+            ],
+            startY: (doc as any).lastAutoTable.finalY + 15,
+            theme: 'grid'
+        });
     }
     doc.save(`Report_${branchName}.pdf`);
   };
@@ -405,17 +455,69 @@ export const Admin = () => {
       if(reportViewMode === 'detailed') {
            content = `
            <table>
-             <thead><tr><th>S/N</th><th>Item</th><th>Sold</th><th>Method</th><th>Total Sales</th><th>Profit</th></tr></thead>
-             <tbody>${detailedReportData.rows.map(r=>`<tr><td>${r.sn}</td><td>${r.itemName}</td><td>${r.qtySold}</td><td>${r.paymentMethod}</td><td>${r.totalSales.toFixed(2)}</td><td>${r.profit.toFixed(2)}</td></tr>`).join('')}</tbody>
+             <thead><tr><th>S/N</th><th>Item</th><th>Sold</th><th>Discount</th><th>Balance</th><th>Method</th><th>Total Sales</th><th>Profit</th></tr></thead>
+             <tbody>${detailedReportData.rows.map(r=>`<tr><td>${r.sn}</td><td>${r.itemName}</td><td>${r.qtySold}</td><td>${r.discount.toFixed(2)}</td><td>${r.balance.toFixed(2)}</td><td>${r.paymentMethod}</td><td>${r.totalSales.toFixed(2)}</td><td>${r.profit.toFixed(2)}</td></tr>`).join('')}</tbody>
            </table>
            <div style="margin-top:20px; font-weight:bold;">Financial Summary</div>
            <table>
-             <tr><td>Total Sales</td><td>${detailedReportData.grandTotalSales.toFixed(2)}</td></tr>
+             <tr><td>Total Sales (Before Discount)</td><td>${detailedReportData.grandTotalSales.toFixed(2)}</td></tr>
+             <tr><td>Total Discount</td><td>${detailedReportData.grandDiscount.toFixed(2)}</td></tr>
+             <tr><td>Total Sales (After Discount)</td><td>${detailedReportData.grandTotalBalance.toFixed(2)}</td></tr>
+             <tr><td>Total Cost</td><td>${detailedReportData.grandTotalCost.toFixed(2)}</td></tr>
              <tr><td>Total Profit</td><td>${detailedReportData.grandTotalProfit.toFixed(2)}</td></tr>
              <tr><td>Cash</td><td>${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
              <tr><td>POS</td><td>${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
+             <tr><td>Transfer</td><td>${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
+             <tr><td>Credit</td><td>${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
            </table>
            `;
+      } else if (reportViewMode === 'transactions') {
+          // Enhanced transactions report with item details
+          let sn = 1;
+          let grandTotalBeforeDiscount = 0;
+          let grandTotalDiscount = 0;
+          let grandTotalAfterDiscount = 0;
+          
+          const rowsHtml = filteredReportTransactions.flatMap(t => {
+              const itemDiscountShare = t.discount / (t.items.length || 1);
+              return t.items.map(item => {
+                  const itemTotal = item.sellingPrice * item.quantity;
+                  const itemDiscount = itemDiscountShare;
+                  const itemBalance = itemTotal - itemDiscount;
+                  
+                  grandTotalBeforeDiscount += itemTotal;
+                  grandTotalDiscount += itemDiscount;
+                  grandTotalAfterDiscount += itemBalance;
+                  
+                  return `<tr>
+                      <td>${sn++}</td>
+                      <td>${item.name}</td>
+                      <td>${item.quantity}</td>
+                      <td>${itemDiscount.toFixed(2)}</td>
+                      <td>${itemBalance.toFixed(2)}</td>
+                      <td>${t.cashierName}</td>
+                      <td>${new Date(t.date).toLocaleString()}</td>
+                      <td>${t.status}</td>
+                  </tr>`;
+              });
+          }).join('');
+          
+          content = `
+          <table>
+            <thead><tr><th>S/N</th><th>Item Name</th><th>Qty Sold</th><th>Discount</th><th>Balance After Discount</th><th>Cashier</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <div style="margin-top:20px; font-weight:bold;">Grand Total Breakdown</div>
+          <table>
+            <tr><td>Total Before Discount</td><td>${grandTotalBeforeDiscount.toFixed(2)}</td></tr>
+            <tr><td>Total Discount</td><td>${grandTotalDiscount.toFixed(2)}</td></tr>
+            <tr><td>Grand Total (After Discount)</td><td>${grandTotalAfterDiscount.toFixed(2)}</td></tr>
+            <tr><td>Cash</td><td>${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
+            <tr><td>POS</td><td>${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
+            <tr><td>Transfer</td><td>${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
+            <tr><td>Credit</td><td>${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
+          </table>
+          `;
       } else {
            content = `<table><thead><tr><th>Date</th><th>Total</th><th>Status</th></tr></thead><tbody>${filteredReportTransactions.map(t=>`<tr><td>${new Date(t.date).toLocaleString()}</td><td>${t.total.toFixed(2)}</td><td>${t.status}</td></tr>`).join('')}</tbody></table>`;
       }
@@ -659,7 +761,7 @@ export const Admin = () => {
                                 <tr><th>Item Name</th><th>SKU</th><th>Category</th><th>Stock</th><th>Cost Price</th><th>Selling Price</th><th>Total Value</th></tr>
                             </thead>
                             <tbody className="divide-y divide-gray-700">
-                                {branchProducts.map(p => (
+                                {products.map(p => (
                                     <tr key={p.id} className="hover:bg-gray-700/50">
                                         <td className="p-3 font-bold">{p.name}</td>
                                         <td className="p-3 font-mono text-xs">{p.sku}</td>
@@ -674,7 +776,7 @@ export const Admin = () => {
                             <tfoot className="bg-gray-900 font-bold text-white">
                                 <tr>
                                     <td colSpan={6} className="p-4 text-right">Total Inventory Value:</td>
-                                    <td className="p-4">{settings.currency}{branchProducts.reduce((sum, p) => sum + (p.stock * p.sellingPrice), 0).toFixed(2)}</td>
+                                    <td className="p-4">{settings.currency}{products.reduce((sum, p) => sum + (p.stock * p.sellingPrice), 0).toFixed(2)}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -690,7 +792,7 @@ export const Admin = () => {
                                 </div>
                             )}
                             <table className="w-full text-left text-sm text-gray-300">
-                               <thead className="bg-gray-900 text-gray-400 text-xs uppercase font-bold"><tr><th className="p-3 w-8"><input type="checkbox" className="w-4 h-4 accent-blue-600" checked={selectedTransactions.size === filteredReportTransactions.length && filteredReportTransactions.length > 0} onChange={e => { if(e.target.checked) { setSelectedTransactions(new Set(filteredReportTransactions.map(t => t.id))); } else { setSelectedTransactions(new Set()); } }} /></th><th>Date</th><th>ID</th><th>Items</th><th>Cashier</th><th>Method</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+                               <thead className="bg-gray-900 text-gray-400 text-xs uppercase font-bold"><tr><th className="p-3 w-8"><input type="checkbox" className="w-4 h-4 accent-blue-600" checked={selectedTransactions.size === filteredReportTransactions.length && filteredReportTransactions.length > 0} onChange={e => { if(e.target.checked) { setSelectedTransactions(new Set(filteredReportTransactions.map(t => t.id))); } else { setSelectedTransactions(new Set()); } }} /></th><th>Date</th><th>ID</th><th>Items</th><th>Cashier</th><th>Total</th><th>Discount</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead>
                                <tbody className="divide-y divide-gray-700">
                                    {filteredReportTransactions.map(t => (
                                        <tr key={t.id} className="hover:bg-gray-700/50">

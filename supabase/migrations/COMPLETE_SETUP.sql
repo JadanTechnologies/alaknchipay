@@ -4,6 +4,32 @@
 -- ============================================
 
 -- ============================================
+-- PART 0: PREREQUISITES & SCHEMA SAFETY
+-- ============================================
+
+-- Ensure profiles table exists with correct schema
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  username text UNIQUE,
+  name text,
+  role text DEFAULT 'CASHIER',
+  active boolean DEFAULT true,
+  store_id text,
+  expense_limit numeric DEFAULT 0.00,
+  created_at timestamp with time zone DEFAULT now()
+);
+
+-- Ensure columns exist (for existing tables)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS store_id text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS expense_limit numeric DEFAULT 0.00;
+
+-- Remove restrictive role constraint if it exists (to allow dynamic roles)
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+
+-- Enable RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
 -- PART 1: AUTO USER PROFILE CREATION
 -- ============================================
 
@@ -168,6 +194,20 @@ BEGIN
     'process_sales', 'close_register'
   );
 END $$;
+
+-- ============================================
+-- PART 4.5: RESTORE PROFILE SECURITY
+-- ============================================
+
+-- Drop insecure policies if they exist (from troubleshooting)
+DROP POLICY IF EXISTS "Enable all for authenticated users" ON public.profiles;
+
+-- Ensure basic profile visibility
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 
 -- ============================================

@@ -368,6 +368,8 @@ export const Admin = () => {
 
     doc.setFontSize(18); doc.text(settings.name, 14, 15);
     doc.setFontSize(14); doc.text(branchName + " Report", 14, 22);
+    doc.setFontSize(10); doc.text(`Branch: ${currentBranch?.address || 'N/A'} | Phone: ${currentBranch?.phone || 'N/A'}`, 14, 28);
+    doc.setFontSize(10); doc.text(`Period: ${filterStartDate || 'All'} to ${filterEndDate || 'All'} | Generated: ${new Date().toLocaleString()}`, 14, 34);
 
     if (reportViewMode === 'detailed') {
         const columns = ["S/N", "Item", "Qty Before", "Sold", "Rem", "Method", "Unit Cost", "Unit Price", "Total Cost", "Total Sales", "Profit", "Cashier", "Date"];
@@ -379,7 +381,7 @@ export const Admin = () => {
         autoTable(doc, { 
             head: [columns], 
             body: rows, 
-            startY: 35, 
+            startY: 42, 
             styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
             headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 7 },
             columnStyles: {
@@ -470,7 +472,7 @@ export const Admin = () => {
         autoTable(doc, { 
             head: [columns], 
             body: rows, 
-            startY: 35, 
+            startY: 42, 
             styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
             headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 7 },
             columnStyles: {
@@ -611,6 +613,7 @@ export const Admin = () => {
             <html><head><style>
               body { font-family: 'Segoe UI', Arial, sans-serif; margin: 10px; }
               h2 { color: #1a1a1a; border-bottom: 2px solid #2980b9; padding-bottom: 5px; }
+              .branch-info { color: #555; margin-bottom: 15px; font-size: 12px; }
               table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
               th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
               th { background: #2980b9; color: white; font-weight: bold; }
@@ -623,6 +626,11 @@ export const Admin = () => {
               @media print { body { margin: 0; } }
             </style></head><body>
               <h2>${currentBranch?.name} - Report</h2>
+              <div class="branch-info">
+                <div><strong>Address:</strong> ${currentBranch?.address || 'N/A'}</div>
+                <div><strong>Phone:</strong> ${currentBranch?.phone || 'N/A'}</div>
+                <div><strong>Period:</strong> ${filterStartDate || 'All'} to ${filterEndDate || 'All'}</div>
+              </div>
               ${content}
               <script>window.print();</script>
             </body></html>

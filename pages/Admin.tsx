@@ -401,6 +401,8 @@ export const Admin = () => {
         let grandTotalBeforeDiscount = 0;
         let grandTotalDiscount = 0;
         let grandTotalAfterDiscount = 0;
+        let grandTotalCostPrice = 0;
+        let grandTotalSellPrice = 0;
         
         const rows = filteredReportTransactions.flatMap(t => {
             const itemDiscountShare = t.discount / (t.items.length || 1);
@@ -408,15 +410,22 @@ export const Admin = () => {
                 const itemTotal = item.sellingPrice * item.quantity;
                 const itemDiscount = itemDiscountShare;
                 const itemBalance = itemTotal - itemDiscount;
+                const itemCostTotal = (item.costPrice || 0) * item.quantity;
                 
                 grandTotalBeforeDiscount += itemTotal;
                 grandTotalDiscount += itemDiscount;
                 grandTotalAfterDiscount += itemBalance;
+                grandTotalCostPrice += itemCostTotal;
+                grandTotalSellPrice += itemTotal;
                 
                 return [
                     sn++,
                     item.name,
                     item.quantity,
+                    (item.costPrice || 0).toFixed(2),
+                    itemCostTotal.toFixed(2),
+                    item.sellingPrice.toFixed(2),
+                    itemTotal.toFixed(2),
                     itemDiscount.toFixed(2),
                     itemBalance.toFixed(2),
                     t.cashierName,
@@ -426,17 +435,19 @@ export const Admin = () => {
             });
         });
         
-        const columns = ["S/N", "Item Name", "Qty Sold", "Discount", "Balance After Discount", "Cashier", "Date", "Status"];
-        autoTable(doc, { head: [columns], body: rows, startY: 35, styles: { fontSize: 8 } });
+        const columns = ["S/N", "Item Name", "Qty", "Unit Cost", "Total Cost", "Unit Sell", "Total Sell", "Discount", "Balance", "Cashier", "Date", "Status"];
+        autoTable(doc, { head: [columns], body: rows, startY: 35, styles: { fontSize: 7 } });
         
         // Add grand total breakdown
         doc.text("Grand Total Breakdown", 14, (doc as any).lastAutoTable.finalY + 10);
         autoTable(doc, {
             head: [['Metric', 'Value']],
             body: [
-                ['Total Before Discount', grandTotalBeforeDiscount.toFixed(2)],
+                ['Total Cost Price', grandTotalCostPrice.toFixed(2)],
+                ['Total Sell Price (Before Discount)', grandTotalBeforeDiscount.toFixed(2)],
                 ['Total Discount', grandTotalDiscount.toFixed(2)],
                 ['Grand Total (After Discount)', grandTotalAfterDiscount.toFixed(2)],
+                ['Total Profit', (grandTotalAfterDiscount - grandTotalCostPrice).toFixed(2)],
                 ['Cash', breakdown[PaymentMethod.CASH].toFixed(2)],
                 ['POS', breakdown[PaymentMethod.POS].toFixed(2)],
                 ['Transfer', breakdown[PaymentMethod.TRANSFER].toFixed(2)],
@@ -477,6 +488,8 @@ export const Admin = () => {
           let grandTotalBeforeDiscount = 0;
           let grandTotalDiscount = 0;
           let grandTotalAfterDiscount = 0;
+          let grandTotalCostPrice = 0;
+          let grandTotalSellPrice = 0;
           
           const rowsHtml = filteredReportTransactions.flatMap(t => {
               const itemDiscountShare = t.discount / (t.items.length || 1);
@@ -484,15 +497,22 @@ export const Admin = () => {
                   const itemTotal = item.sellingPrice * item.quantity;
                   const itemDiscount = itemDiscountShare;
                   const itemBalance = itemTotal - itemDiscount;
+                  const itemCostTotal = (item.costPrice || 0) * item.quantity;
                   
                   grandTotalBeforeDiscount += itemTotal;
                   grandTotalDiscount += itemDiscount;
                   grandTotalAfterDiscount += itemBalance;
+                  grandTotalCostPrice += itemCostTotal;
+                  grandTotalSellPrice += itemTotal;
                   
                   return `<tr>
                       <td>${sn++}</td>
                       <td>${item.name}</td>
                       <td>${item.quantity}</td>
+                      <td>${(item.costPrice || 0).toFixed(2)}</td>
+                      <td>${itemCostTotal.toFixed(2)}</td>
+                      <td>${item.sellingPrice.toFixed(2)}</td>
+                      <td>${itemTotal.toFixed(2)}</td>
                       <td>${itemDiscount.toFixed(2)}</td>
                       <td>${itemBalance.toFixed(2)}</td>
                       <td>${t.cashierName}</td>
@@ -504,14 +524,16 @@ export const Admin = () => {
           
           content = `
           <table>
-            <thead><tr><th>S/N</th><th>Item Name</th><th>Qty Sold</th><th>Discount</th><th>Balance After Discount</th><th>Cashier</th><th>Date</th><th>Status</th></tr></thead>
+            <thead><tr><th>S/N</th><th>Item Name</th><th>Qty</th><th>Unit Cost</th><th>Total Cost</th><th>Unit Sell</th><th>Total Sell</th><th>Discount</th><th>Balance</th><th>Cashier</th><th>Date</th><th>Status</th></tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>
           <div style="margin-top:20px; font-weight:bold;">Grand Total Breakdown</div>
           <table>
-            <tr><td>Total Before Discount</td><td>${grandTotalBeforeDiscount.toFixed(2)}</td></tr>
+            <tr><td>Total Cost Price</td><td>${grandTotalCostPrice.toFixed(2)}</td></tr>
+            <tr><td>Total Sell Price (Before Discount)</td><td>${grandTotalBeforeDiscount.toFixed(2)}</td></tr>
             <tr><td>Total Discount</td><td>${grandTotalDiscount.toFixed(2)}</td></tr>
             <tr><td>Grand Total (After Discount)</td><td>${grandTotalAfterDiscount.toFixed(2)}</td></tr>
+            <tr><td>Total Profit</td><td>${(grandTotalAfterDiscount - grandTotalCostPrice).toFixed(2)}</td></tr>
             <tr><td>Cash</td><td>${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
             <tr><td>POS</td><td>${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
             <tr><td>Transfer</td><td>${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>

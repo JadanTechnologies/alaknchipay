@@ -376,7 +376,30 @@ export const Admin = () => {
             r.unitCost.toFixed(2), r.unitPrice.toFixed(2), r.totalCost.toFixed(2), r.totalSales.toFixed(2), r.profit.toFixed(2),
             r.cashier, r.date.split(',')[0]
         ]);
-        autoTable(doc, { head: [columns], body: rows, startY: 35, styles: { fontSize: 8 } });
+        autoTable(doc, { 
+            head: [columns], 
+            body: rows, 
+            startY: 35, 
+            styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+            columnStyles: {
+                0: { cellWidth: 10 },
+                1: { cellWidth: 30 },
+                2: { cellWidth: 12, halign: 'center' },
+                3: { cellWidth: 10, halign: 'center' },
+                4: { cellWidth: 10, halign: 'center' },
+                5: { cellWidth: 15 },
+                6: { cellWidth: 15, halign: 'right' },
+                7: { cellWidth: 15, halign: 'right' },
+                8: { cellWidth: 18, halign: 'right' },
+                9: { cellWidth: 18, halign: 'right' },
+                10: { cellWidth: 15, halign: 'right' },
+                11: { cellWidth: 20 },
+                12: { cellWidth: 20 }
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 10, right: 10 }
+        });
         
         doc.text("Financial Summary", 14, (doc as any).lastAutoTable.finalY + 10);
         autoTable(doc, {
@@ -393,7 +416,12 @@ export const Admin = () => {
                 ['Credit', breakdown[PaymentMethod.CREDIT].toFixed(2)]
             ],
             startY: (doc as any).lastAutoTable.finalY + 15,
-            theme: 'grid'
+            theme: 'grid',
+            headStyles: { fillColor: [39, 174, 96], textColor: 255, fontStyle: 'bold' },
+            columnStyles: {
+                0: { fontStyle: 'bold' },
+                1: { halign: 'right' }
+            }
         });
     } else if (reportViewMode === 'transactions') {
         // Enhanced transactions report with item details
@@ -407,10 +435,13 @@ export const Admin = () => {
         const rows = filteredReportTransactions.flatMap(t => {
             const itemDiscountShare = t.discount / (t.items.length || 1);
             return t.items.map(item => {
+                // Get costPrice from item or fall back to product from inventory
+                const product = products.find(p => p.id === item.id);
+                const itemCostPrice = item.costPrice || product?.costPrice || 0;
                 const itemTotal = item.sellingPrice * item.quantity;
                 const itemDiscount = itemDiscountShare;
                 const itemBalance = itemTotal - itemDiscount;
-                const itemCostTotal = (item.costPrice || 0) * item.quantity;
+                const itemCostTotal = itemCostPrice * item.quantity;
                 
                 grandTotalBeforeDiscount += itemTotal;
                 grandTotalDiscount += itemDiscount;
@@ -422,7 +453,7 @@ export const Admin = () => {
                     sn++,
                     item.name,
                     item.quantity,
-                    (item.costPrice || 0).toFixed(2),
+                    itemCostPrice.toFixed(2),
                     itemCostTotal.toFixed(2),
                     item.sellingPrice.toFixed(2),
                     itemTotal.toFixed(2),
@@ -436,7 +467,29 @@ export const Admin = () => {
         });
         
         const columns = ["S/N", "Item Name", "Qty", "Unit Cost", "Total Cost", "Unit Sell", "Total Sell", "Discount", "Balance", "Cashier", "Date", "Status"];
-        autoTable(doc, { head: [columns], body: rows, startY: 35, styles: { fontSize: 7 } });
+        autoTable(doc, { 
+            head: [columns], 
+            body: rows, 
+            startY: 35, 
+            styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+            columnStyles: {
+                0: { cellWidth: 10 }, // S/N
+                1: { cellWidth: 35 }, // Item Name
+                2: { cellWidth: 10, halign: 'center' }, // Qty
+                3: { cellWidth: 18, halign: 'right' }, // Unit Cost
+                4: { cellWidth: 18, halign: 'right' }, // Total Cost
+                5: { cellWidth: 18, halign: 'right' }, // Unit Sell
+                6: { cellWidth: 18, halign: 'right' }, // Total Sell
+                7: { cellWidth: 15, halign: 'right' }, // Discount
+                8: { cellWidth: 18, halign: 'right' }, // Balance
+                9: { cellWidth: 20 }, // Cashier
+                10: { cellWidth: 25 }, // Date
+                11: { cellWidth: 15, halign: 'center' } // Status
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 10, right: 10 }
+        });
         
         // Add grand total breakdown
         doc.text("Grand Total Breakdown", 14, (doc as any).lastAutoTable.finalY + 10);
@@ -454,7 +507,12 @@ export const Admin = () => {
                 ['Credit', breakdown[PaymentMethod.CREDIT].toFixed(2)]
             ],
             startY: (doc as any).lastAutoTable.finalY + 15,
-            theme: 'grid'
+            theme: 'grid',
+            headStyles: { fillColor: [39, 174, 96], textColor: 255, fontStyle: 'bold' },
+            columnStyles: {
+                0: { fontStyle: 'bold' },
+                1: { halign: 'right' }
+            }
         });
     }
     doc.save(`Report_${branchName}.pdf`);
@@ -469,17 +527,17 @@ export const Admin = () => {
              <thead><tr><th>S/N</th><th>Item</th><th>Sold</th><th>Discount</th><th>Balance</th><th>Method</th><th>Total Sales</th><th>Profit</th></tr></thead>
              <tbody>${detailedReportData.rows.map(r=>`<tr><td>${r.sn}</td><td>${r.itemName}</td><td>${r.qtySold}</td><td>${r.discount.toFixed(2)}</td><td>${r.balance.toFixed(2)}</td><td>${r.paymentMethod}</td><td>${r.totalSales.toFixed(2)}</td><td>${r.profit.toFixed(2)}</td></tr>`).join('')}</tbody>
            </table>
-           <div style="margin-top:20px; font-weight:bold;">Financial Summary</div>
-           <table>
-             <tr><td>Total Sales (Before Discount)</td><td>${detailedReportData.grandTotalSales.toFixed(2)}</td></tr>
-             <tr><td>Total Discount</td><td>${detailedReportData.grandDiscount.toFixed(2)}</td></tr>
-             <tr><td>Total Sales (After Discount)</td><td>${detailedReportData.grandTotalBalance.toFixed(2)}</td></tr>
-             <tr><td>Total Cost</td><td>${detailedReportData.grandTotalCost.toFixed(2)}</td></tr>
-             <tr><td>Total Profit</td><td>${detailedReportData.grandTotalProfit.toFixed(2)}</td></tr>
-             <tr><td>Cash</td><td>${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
-             <tr><td>POS</td><td>${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
-             <tr><td>Transfer</td><td>${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
-             <tr><td>Credit</td><td>${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
+           <div style="margin-top:20px; font-weight:bold; color: #1a1a1a;">Financial Summary</div>
+           <table class="summary-table" style="margin-top:10px;">
+             <tr><td>Total Sales (Before Discount)</td><td class="text-right">${detailedReportData.grandTotalSales.toFixed(2)}</td></tr>
+             <tr><td>Total Discount</td><td class="text-right">${detailedReportData.grandDiscount.toFixed(2)}</td></tr>
+             <tr><td>Total Sales (After Discount)</td><td class="text-right">${detailedReportData.grandTotalBalance.toFixed(2)}</td></tr>
+             <tr><td>Total Cost</td><td class="text-right">${detailedReportData.grandTotalCost.toFixed(2)}</td></tr>
+             <tr><td><strong>Total Profit</strong></td><td class="text-right"><strong>${detailedReportData.grandTotalProfit.toFixed(2)}</strong></td></tr>
+             <tr><td>Cash</td><td class="text-right">${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
+             <tr><td>POS</td><td class="text-right">${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
+             <tr><td>Transfer</td><td class="text-right">${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
+             <tr><td>Credit</td><td class="text-right">${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
            </table>
            `;
       } else if (reportViewMode === 'transactions') {
@@ -494,10 +552,13 @@ export const Admin = () => {
           const rowsHtml = filteredReportTransactions.flatMap(t => {
               const itemDiscountShare = t.discount / (t.items.length || 1);
               return t.items.map(item => {
+                  // Get costPrice from item or fall back to product from inventory
+                  const product = products.find(p => p.id === item.id);
+                  const itemCostPrice = item.costPrice || product?.costPrice || 0;
                   const itemTotal = item.sellingPrice * item.quantity;
                   const itemDiscount = itemDiscountShare;
                   const itemBalance = itemTotal - itemDiscount;
-                  const itemCostTotal = (item.costPrice || 0) * item.quantity;
+                  const itemCostTotal = itemCostPrice * item.quantity;
                   
                   grandTotalBeforeDiscount += itemTotal;
                   grandTotalDiscount += itemDiscount;
@@ -509,7 +570,7 @@ export const Admin = () => {
                       <td>${sn++}</td>
                       <td>${item.name}</td>
                       <td>${item.quantity}</td>
-                      <td>${(item.costPrice || 0).toFixed(2)}</td>
+                      <td>${itemCostPrice.toFixed(2)}</td>
                       <td>${itemCostTotal.toFixed(2)}</td>
                       <td>${item.sellingPrice.toFixed(2)}</td>
                       <td>${itemTotal.toFixed(2)}</td>
@@ -527,17 +588,17 @@ export const Admin = () => {
             <thead><tr><th>S/N</th><th>Item Name</th><th>Qty</th><th>Unit Cost</th><th>Total Cost</th><th>Unit Sell</th><th>Total Sell</th><th>Discount</th><th>Balance</th><th>Cashier</th><th>Date</th><th>Status</th></tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>
-          <div style="margin-top:20px; font-weight:bold;">Grand Total Breakdown</div>
-          <table>
-            <tr><td>Total Cost Price</td><td>${grandTotalCostPrice.toFixed(2)}</td></tr>
-            <tr><td>Total Sell Price (Before Discount)</td><td>${grandTotalBeforeDiscount.toFixed(2)}</td></tr>
-            <tr><td>Total Discount</td><td>${grandTotalDiscount.toFixed(2)}</td></tr>
-            <tr><td>Grand Total (After Discount)</td><td>${grandTotalAfterDiscount.toFixed(2)}</td></tr>
-            <tr><td>Total Profit</td><td>${(grandTotalAfterDiscount - grandTotalCostPrice).toFixed(2)}</td></tr>
-            <tr><td>Cash</td><td>${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
-            <tr><td>POS</td><td>${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
-            <tr><td>Transfer</td><td>${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
-            <tr><td>Credit</td><td>${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
+          <div style="margin-top:20px; font-weight:bold; color: #1a1a1a;">Grand Total Breakdown</div>
+          <table class="summary-table" style="margin-top:10px;">
+            <tr><td>Total Cost Price</td><td class="text-right">${grandTotalCostPrice.toFixed(2)}</td></tr>
+            <tr><td>Total Sell Price (Before Discount)</td><td class="text-right">${grandTotalBeforeDiscount.toFixed(2)}</td></tr>
+            <tr><td>Total Discount</td><td class="text-right">${grandTotalDiscount.toFixed(2)}</td></tr>
+            <tr><td><strong>Grand Total (After Discount)</strong></td><td class="text-right"><strong>${grandTotalAfterDiscount.toFixed(2)}</strong></td></tr>
+            <tr><td>Total Profit</td><td class="text-right">${(grandTotalAfterDiscount - grandTotalCostPrice).toFixed(2)}</td></tr>
+            <tr><td>Cash</td><td class="text-right">${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
+            <tr><td>POS</td><td class="text-right">${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
+            <tr><td>Transfer</td><td class="text-right">${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
+            <tr><td>Credit</td><td class="text-right">${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
           </table>
           `;
       } else {
@@ -548,7 +609,18 @@ export const Admin = () => {
       if(win){ 
           win.document.write(`
             <html><head><style>
-              body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #000; padding: 5px; } th { background: #eee; }
+              body { font-family: 'Segoe UI', Arial, sans-serif; margin: 10px; }
+              h2 { color: #1a1a1a; border-bottom: 2px solid #2980b9; padding-bottom: 5px; }
+              table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+              th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+              th { background: #2980b9; color: white; font-weight: bold; }
+              tr:nth-child(even) { background: #f8f8f8; }
+              tr:hover { background: #f0f0f0; }
+              .text-right { text-align: right; }
+              .text-center { text-align: center; }
+              .summary-table { background: #f0f8ff; border: 2px solid #2980b9; }
+              .summary-table th { background: #27ae60; }
+              @media print { body { margin: 0; } }
             </style></head><body>
               <h2>${currentBranch?.name} - Report</h2>
               ${content}

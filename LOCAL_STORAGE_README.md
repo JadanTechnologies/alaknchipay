@@ -36,9 +36,9 @@ The application comes pre-populated with demo accounts:
 
 | Username | Password | Role |
 |----------|----------|------|
-| `superadmin` | `admin123` | SUPER_ADMIN |
-| `admin` | `admin123` | BRANCH_MANAGER |
-| `cashier` | `cashier123` | CASHIER |
+| `Salmanu@alkanchipay.com` | `Salmanu@2026` | SUPER_ADMIN |
+| `admin@alkanchipay.com` | `Admin@2025` | BRANCH_MANAGER |
+| `cashier@alkanchipay.com` | `Cashier@2025` | CASHIER |
 
 ## Features
 

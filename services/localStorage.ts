@@ -50,8 +50,8 @@ export const initializeLocalStorage = (): void => {
       {
         id: 'super_admin_1',
         name: 'Super Admin',
-        username: 'salmanu@alkanchipay.com',
-        password: 'Salmanu@2025',
+        username: 'Salmanu@alkanchipay.com',
+        password: 'Salmanu@2026',
         role: 'SUPER_ADMIN',
         active: true,
         storeId: undefined,

@@ -260,7 +260,7 @@ export const Users = {
       console.error('Failed to import users', e);
       return { added: 0, skipped: 0, replaced: false };
     }
-  }
+  },
 
   updatePassword: (id: string, newPassword: string): boolean => {
     const users = getItem(STORAGE_KEYS.USERS, []);

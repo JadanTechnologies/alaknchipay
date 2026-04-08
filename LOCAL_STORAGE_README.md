@@ -100,6 +100,27 @@ This is useful for:
 - Version control
 - Data recovery
 
+## Exporting & Importing Users (Cross-device)
+
+You can export user accounts from one machine and import them into another to enable cross-device login.
+
+- Go to **Admin → Settings**.
+- Click **Export Users** to download a JSON file containing all user accounts (`alkanchipay_users`).
+- On the other device, open **Admin → Settings → Import Users** and choose the downloaded file.
+- Use *Import Users (merge)* to add only non-conflicting accounts, or *Import Users (replace)* to overwrite the entire users list.
+
+Notes:
+- Usernames are normalized (trimmed and lowercased) to avoid common casing/whitespace login issues.
+- After importing, reload the app if it doesn't automatically refresh.
+
+Manual reproduction steps for login troubleshooting:
+
+1. On the failing laptop, open Developer Tools → Application → Local Storage.
+2. Confirm `alkanchipay_users` exists and contains the expected username (lowercased).
+3. If missing, import the exported users JSON.
+4. Ensure `alkanchipay_session` is cleared (delete it) before attempting login.
+5. Try signing in with the exported account (username is case-insensitive).
+
 ## Differences from Original (Supabase) Version
 
 | Feature | Original | Local Storage |

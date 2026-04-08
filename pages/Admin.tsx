@@ -5,6 +5,7 @@ import { Product, Role, Transaction, RefundItem, PaymentMethod, TransactionStatu
 import { Icons } from '../components/ui/Icons';
 import { nanoid } from 'nanoid';
 import { HeaderTools } from '../components/ui/HeaderTools';
+import * as LocalStorage from '../services/localStorage';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -83,6 +84,8 @@ export const Admin = () => {
 
   // Backup Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+    const usersFileRef = useRef<HTMLInputElement>(null);
+    const [usersImportReplace, setUsersImportReplace] = useState(false);
 
   // Filter Logic
   const filteredInventory = products.filter(p => {
@@ -227,6 +230,38 @@ export const Admin = () => {
   };
 
   const handleRestoreClick = () => fileInputRef.current?.click();
+
+  // Users export/import
+  const handleExportUsers = () => {
+      const json = LocalStorage.Users.exportToJson();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `alkanchipay_users_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      addNotification('Users exported', 'success');
+  };
+
+  const handleUsersImportClick = () => { setUsersImportReplace(false); usersFileRef.current?.click(); };
+  const handleUsersReplaceImportClick = () => { setUsersImportReplace(true); usersFileRef.current?.click(); };
+
+  const handleUsersFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+          const content = ev.target?.result as string;
+          if(!content) return;
+          const result = LocalStorage.Users.importFromJson(content, usersImportReplace);
+          addNotification(`Users import: added ${result.added}, skipped ${result.skipped}${usersImportReplace?', replaced': ''}`.trim(), 'success');
+          // reload app to refresh users/state
+          window.location.reload();
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+      setUsersImportReplace(false);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -911,6 +946,33 @@ export const Admin = () => {
                         </div>
                     )}
                  </div>
+            </div>
+        )}
+
+        {activeTab === 'settings' && (
+            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+                <h3 className="font-bold text-white text-lg mb-4">Branch Settings & Data</h3>
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 bg-gray-900 p-4 rounded">
+                        <h4 className="text-sm text-gray-300 font-semibold mb-2">Backups</h4>
+                        <div className="flex gap-2">
+                            <button onClick={handleBackup} className="bg-blue-600 px-3 py-2 rounded">Download Backup</button>
+                            <button onClick={handleRestoreClick} className="bg-gray-700 px-3 py-2 rounded">Restore Backup</button>
+                            <input ref={fileInputRef} type="file" accept="application/json" onChange={handleFileChange} className="hidden" />
+                        </div>
+                    </div>
+
+                    <div className="flex-1 bg-gray-900 p-4 rounded">
+                        <h4 className="text-sm text-gray-300 font-semibold mb-2">Users (Export / Import)</h4>
+                        <div className="flex gap-2">
+                            <button onClick={handleExportUsers} className="bg-green-600 px-3 py-2 rounded">Export Users</button>
+                            <button onClick={handleUsersImportClick} className="bg-yellow-600 px-3 py-2 rounded">Import Users (merge)</button>
+                            <button onClick={handleUsersReplaceImportClick} className="bg-red-600 px-3 py-2 rounded">Import Users (replace)</button>
+                            <input ref={usersFileRef} type="file" accept="application/json" onChange={handleUsersFileChange} className="hidden" />
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">Import will merge non-conflicting usernames. To replace all users, use the Import and then replace option (coming soon).</p>
+                    </div>
+                </div>
             </div>
         )}
 

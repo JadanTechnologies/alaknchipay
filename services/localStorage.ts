@@ -58,6 +58,8 @@ export const initializeLocalStorage = (): void => {
         expenseLimit: 0
       }
     ];
+    // Ensure usernames are normalized on initial seed
+    defaultUsers.forEach(u => { u.username = (u.username || '').trim().toLowerCase(); });
     setItem(STORAGE_KEYS.USERS, defaultUsers);
   }
 
@@ -172,17 +174,19 @@ export const Users = {
 
   getByUsername: (username: string): User | null => {
     const users = getItem(STORAGE_KEYS.USERS, []);
-    return users.find(u => u.username === username) || null;
+    const normalized = username?.trim().toLowerCase();
+    return users.find(u => (u.username || '').trim().toLowerCase() === normalized) || null;
   },
 
   isUsernameUnique: (username: string, excludeId?: string): boolean => {
     const users = getItem(STORAGE_KEYS.USERS, []);
-    const existing = users.find(u => u.username === username);
+    const normalized = username?.trim().toLowerCase();
+    const existing = users.find(u => (u.username || '').trim().toLowerCase() === normalized);
     return !existing || (excludeId && existing.id === excludeId);
   },
 
   create: (user: Omit<User, 'id'>): User => {
-    const newUser = { ...user, id: nanoid() };
+    const newUser = { ...user, id: nanoid(), username: user.username?.trim().toLowerCase() };
     const users = getItem(STORAGE_KEYS.USERS, []);
     setItem(STORAGE_KEYS.USERS, [...users, newUser]);
     return newUser;
@@ -193,7 +197,7 @@ export const Users = {
     const index = users.findIndex(u => u.id === id);
     if (index === -1) return null;
     
-    const updated = { ...users[index], ...updates };
+    const updated = { ...users[index], ...updates, username: updates.username ? updates.username.trim().toLowerCase() : users[index].username };
     users[index] = updated;
     setItem(STORAGE_KEYS.USERS, users);
     return updated;
@@ -209,8 +213,54 @@ export const Users = {
 
   authenticate: (username: string, password: string): User | null => {
     const users = getItem(STORAGE_KEYS.USERS, []);
-    return users.find(u => u.username === username && u.password === password) || null;
+    const normalized = username?.trim().toLowerCase();
+    return users.find(u => (u.username || '').trim().toLowerCase() === normalized && u.password === password) || null;
   },
+
+  exportToJson: (): string => {
+    const users = getItem(STORAGE_KEYS.USERS, []);
+    return JSON.stringify(users, null, 2);
+  },
+
+  /**
+   * Import users from a JSON string.
+   * If replace=true, existing users are replaced. Otherwise merge unique usernames.
+   * Returns an object with counts { added, skipped, replaced }
+   */
+  importFromJson: (json: string, replace = false): { added: number; skipped: number; replaced: boolean } => {
+    try {
+      const parsed = JSON.parse(json);
+      if (!Array.isArray(parsed)) throw new Error('Invalid users JSON');
+
+      const existing = getItem(STORAGE_KEYS.USERS, []);
+      if (replace) {
+        // Normalize usernames and replace
+        const normalized = parsed.map((u: any) => ({ ...u, username: (u.username || '').trim().toLowerCase() }));
+        setItem(STORAGE_KEYS.USERS, normalized);
+        return { added: normalized.length, skipped: 0, replaced: true };
+      }
+
+      // Merge: add users whose normalized username doesn't exist
+      const existingUsernames = new Set(existing.map((u: any) => (u.username || '').trim().toLowerCase()));
+      let added = 0, skipped = 0;
+      const merged = [...existing];
+      for (const u of parsed) {
+        const normalizedUsername = (u.username || '').trim().toLowerCase();
+        if (!normalizedUsername) { skipped++; continue; }
+        if (existingUsernames.has(normalizedUsername)) { skipped++; continue; }
+        // Ensure id exists
+        const newUser = { ...u, id: u.id || nanoid(), username: normalizedUsername };
+        merged.push(newUser);
+        existingUsernames.add(normalizedUsername);
+        added++;
+      }
+      setItem(STORAGE_KEYS.USERS, merged);
+      return { added, skipped, replaced: false };
+    } catch (e) {
+      console.error('Failed to import users', e);
+      return { added: 0, skipped: 0, replaced: false };
+    }
+  }
 
   updatePassword: (id: string, newPassword: string): boolean => {
     const users = getItem(STORAGE_KEYS.USERS, []);

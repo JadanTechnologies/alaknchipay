@@ -17,7 +17,8 @@ export const Login = () => {
 
     try {
       // Authenticate user from localStorage
-      const user = LocalStorage.Users.authenticate(username, password);
+      const normalizedUsername = username?.trim().toLowerCase();
+      const user = LocalStorage.Users.authenticate(normalizedUsername, password);
 
       if (!user) {
         setError('Invalid username or password');

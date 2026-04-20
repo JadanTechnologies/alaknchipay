@@ -316,6 +316,22 @@ export const Cashier = () => {
   };
 
   const handlePrintReceipt = (tx: Transaction | null) => {
+      const playBeep = () => {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.frequency.value = 1000;
+        oscillator.type = 'square';
+        gainNode.gain.value = 1;
+        oscillator.start();
+        setTimeout(() => { oscillator.stop(); audioCtx.close(); }, 300);
+      };
+      playBeep();
+      setTimeout(playBeep, 400);
+      setTimeout(playBeep, 800);
+      
       const transactionToPrint = tx || completedTransaction;
       if (!transactionToPrint) return;
       
@@ -354,8 +370,10 @@ export const Cashier = () => {
           .header { text-align: center; margin-bottom: 10px; }
           .logo { font-size: 18px; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; color: #000000; }
           .branch { font-size: 14px; font-weight: 700; margin-bottom: 3px; color: #000000; }
+          .branch-info { font-size: 11px; margin-bottom: 2px; font-weight: 600; color: #000000; }
           .info { font-size: 11px; margin-bottom: 2px; color: #000000; }
           .info strong { font-weight: 700; color: #000000; }
+          .info-value { font-weight: 700; color: #000000; }
           .divider { border-bottom: 2px dashed #000000; margin: 8px 0; }
           .divider-thin { border-bottom: 1px solid #000000; margin: 4px 0; }
           table { width: 100%; border-collapse: collapse; }
@@ -368,6 +386,7 @@ export const Cashier = () => {
           .sub-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; font-weight: 600; color: #000000; }
           .footer { text-align: center; font-size: 11px; margin-top: 12px; font-weight: 600; color: #000000; }
           .status { text-align: center; font-weight: 800; border: 2px solid #000000; padding: 4px; margin: 8px 0; font-size: 12px; background: #000000; color: #ffffff; }
+          .no-refund { text-align: center; font-weight: 800; font-size: 14px; margin: 8px 0; color: #000000; background: #ffffff; border: 2px solid #000000; padding: 4px; }
           .item-name { font-weight: 600; }
           .item-qty { font-weight: 600; }
           .item-price { font-weight: 600; }
@@ -380,18 +399,20 @@ export const Cashier = () => {
           ${settings.logoUrl ? `<img src="${settings.logoUrl}" style="max-width: 60px; max-height: 60px; margin-bottom: 5px;" />` : ''}
           <div class="logo">${settings.name}</div>
           <div class="branch">${currentBranch?.name || 'Main Branch'}</div>
-          <div class="info">${currentBranch?.address || ''}</div>
-          <div class="info">${currentBranch?.phone || ''}</div>
+          <div class="branch-info">${currentBranch?.address || ''}</div>
+          <div class="branch-info">${currentBranch?.phone || ''}</div>
         </div>
         
         <div class="divider"></div>
         
         <div class="info">
-          <div><strong>Date:</strong> ${new Date(transactionToPrint.date).toLocaleDateString()}</div>
-          <div><strong>Time:</strong> ${new Date(transactionToPrint.date).toLocaleTimeString()}</div>
-          <div><strong>Cashier:</strong> ${transactionToPrint.cashierName}</div>
-          <div><strong>Receipt #:</strong> ${transactionToPrint.id.substring(0,8)}</div>
-          ${transactionToPrint.customerName ? `<div><strong>Customer:</strong> ${transactionToPrint.customerName}</div>` : ''}
+          <div><strong>Date:</strong> <span class="info-value">${new Date(transactionToPrint.date).toLocaleDateString()}</span></div>
+          <div><strong>Time:</strong> <span class="info-value">${new Date(transactionToPrint.date).toLocaleTimeString()}</span></div>
+          <div><strong>Cashier:</strong> <span class="info-value">${transactionToPrint.cashierName}</span></div>
+          <div><strong>Receipt #:</strong> <span class="info-value">${transactionToPrint.id.substring(0,8)}</span></div>
+          ${transactionToPrint.customerName ? `<div><strong>Customer:</strong> <span class="info-value">${transactionToPrint.customerName}</span></div>` : ''}
+          ${currentBranch?.address ? `<div><strong>Address:</strong> <span class="info-value">${currentBranch.address}</span></div>` : ''}
+          ${currentBranch?.phone ? `<div><strong>Contact:</strong> <span class="info-value">${currentBranch.phone}</span></div>` : ''}
         </div>
 
         <div class="divider"></div>
@@ -462,6 +483,7 @@ export const Cashier = () => {
         <div class="status">
           ${isPaid ? 'PAID FULLY' : 'PARTIAL PAYMENT'}
         </div>
+        <div class="no-refund">NO REFUNDABLE</div>
 
         <div class="footer">
           <div>Thank you for your patronage!</div>

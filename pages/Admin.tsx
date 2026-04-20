@@ -276,6 +276,22 @@ export const Admin = () => {
   };
 
 const handlePrintReceipt = (tx: Transaction) => {
+        const playBeep = () => {
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          oscillator.frequency.value = 1000;
+          oscillator.type = 'square';
+          gainNode.gain.value = 1;
+          oscillator.start();
+          setTimeout(() => { oscillator.stop(); audioCtx.close(); }, 300);
+        };
+        playBeep();
+        setTimeout(playBeep, 400);
+        setTimeout(playBeep, 800);
+        
         const paymentRows = tx.paymentMethod === PaymentMethod.SPLIT 
          ? tx.payments.map(p => `<tr><td>${p.method}</td><td class="right">${settings.currency}${p.amount.toFixed(2)}</td></tr>`).join('')
          : `<tr><td>${tx.paymentMethod}</td><td class="right">${settings.currency}${tx.amountPaid.toFixed(2)}</td></tr>`;
@@ -288,15 +304,17 @@ const handlePrintReceipt = (tx: Transaction) => {
           table { width: 100%; border-collapse: collapse; } th { text-align: left; border-bottom: 2px solid #000; font-weight: 700; }
           td { font-weight: 500; }
           .right { text-align: right; } .center { text-align: center; } .total-row { font-weight: 900; margin-top: 6px; display: flex; justify-content: space-between; font-size: 14px; }
-          .info-row { font-weight: 600; }
+          .info-row { font-weight: 600; color: #000000; }
           .item-name { font-weight: 600; }
           .status { text-align: center; font-weight: 800; border: 2px solid #000; padding: 4px; margin: 10px 0; background: #000; color: #fff; }
+          .no-refund { text-align: center; font-weight: 800; font-size: 14px; margin: 10px 0; color: #000; background: #fff; border: 2px solid #000; padding: 4px; }
           .section-header { font-weight: 700; font-size: 11px; margin-bottom: 4px; border-bottom: 1px solid #000; padding-bottom: 2px; }
       </style></head><body>
-        <div class="header"><div style="font-weight:900; font-size:18px;">${settings.name}</div><div style="font-weight:700; font-size:14px;">${currentBranch?.name}</div></div>
+        <div class="header"><div style="font-weight:900; font-size:18px;">${settings.name}</div><div style="font-weight:700; font-size:14px;">${currentBranch?.name}</div><div style="font-weight:600; font-size:11px;">${currentBranch?.address || ''}</div><div style="font-weight:600; font-size:11px;">${currentBranch?.phone || ''}</div></div>
         <div class="divider"></div>
-        <div class="info-row">Date: ${new Date(tx.date).toLocaleDateString()} ${new Date(tx.date).toLocaleTimeString()}</div>
-        <div class="info-row">Receipt #: ${tx.id.substring(0,8)}</div>
+        <div class="info-row">Date: <span style="font-weight:700; color:#000;">${new Date(tx.date).toLocaleDateString()} ${new Date(tx.date).toLocaleTimeString()}</span></div>
+        <div class="info-row">Cashier: <span style="font-weight:700; color:#000;">${tx.cashierName}</span></div>
+        <div class="info-row">Receipt #: <span style="font-weight:700; color:#000;">${tx.id.substring(0,8)}</span></div>
         <div class="divider"></div>
         <table><thead><tr><th>Item</th><th class="center">Qty</th><th class="right">Amt</th></tr></thead>
         <tbody>${tx.items.map(i => `<tr><td class="item-name">${i.name}</td><td class="center">${i.quantity}</td><td class="right">${(i.sellingPrice*i.quantity).toFixed(2)}</td></tr>`).join('')}</tbody></table>
@@ -304,6 +322,7 @@ const handlePrintReceipt = (tx: Transaction) => {
         <div class="total-row"><span>TOTAL</span><span>${settings.currency}${tx.total.toFixed(2)}</span></div>
         <div style="margin-top:5px"><table>${paymentRows}</table></div>
         <div class="status">${isPaid?'PAID':'PARTIAL'}</div>
+        <div class="no-refund">NO REFUNDABLE</div>
         <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}</script>
       </body></html>`;
       const win = window.open('','_blank','width=400,height=600'); 

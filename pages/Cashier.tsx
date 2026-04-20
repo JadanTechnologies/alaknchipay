@@ -23,11 +23,14 @@ export const Cashier = () => {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
     const [customerName, setCustomerName] = useState('');
+    const [customerPhone, setCustomerPhone] = useState('');
+    const [customerAddress, setCustomerAddress] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
     const [showAddCustomerForm, setShowAddCustomerForm] = useState(false);
     const [newCustomerName, setNewCustomerName] = useState('');
     const [newCustomerPhone, setNewCustomerPhone] = useState('');
     const [newCustomerEmail, setNewCustomerEmail] = useState('');
+    const [newCustomerAddress, setNewCustomerAddress] = useState('');
     const branchCustomers = customers.filter(c => c.storeId === user?.storeId);
   
   // Checkout State
@@ -178,12 +181,14 @@ export const Cashier = () => {
   const finalTotal = Math.max(0, cartTotal - calculatedDiscount);
 
   const handleHoldInvoice = () => {
-    const t: Transaction = { id: nanoid(), date: new Date().toISOString(), cashierId: user?.id || 'u', cashierName: user?.name || 'U', storeId: user?.storeId, items: [...cart], subtotal: cartTotal, discount: 0, total: cartTotal, amountPaid: 0, paymentMethod: PaymentMethod.CASH, payments: [], status: TransactionStatus.HELD, customerId: selectedCustomer?.id, customerName: customerName || selectedCustomer?.name || 'Held Invoice', customerPhone: selectedCustomer?.phone };
-    addTransaction(t); setCart([]); setCustomerName(''); setSelectedCustomer(null);
+    const t: Transaction = { id: nanoid(), date: new Date().toISOString(), cashierId: user?.id || 'u', cashierName: user?.name || 'U', storeId: user?.storeId, items: [...cart], subtotal: cartTotal, discount: 0, total: cartTotal, amountPaid: 0, paymentMethod: PaymentMethod.CASH, payments: [], status: TransactionStatus.HELD, customerId: selectedCustomer?.id, customerName: customerName || selectedCustomer?.name || 'Held Invoice', customerPhone: customerPhone || selectedCustomer?.phone, customerAddress: customerAddress || selectedCustomer?.address };
+    addTransaction(t); setCart([]); setCustomerName(''); setCustomerPhone(''); setCustomerAddress(''); setSelectedCustomer(null);
   };
   const handleRecallInvoice = (t: Transaction) => {
       setCart(t.items);
     setCustomerName(t.customerName || '');
+    setCustomerPhone((t as any).customerPhone || '');
+    setCustomerAddress((t as any).customerAddress || '');
     setSelectedCustomer(t.customerId ? customers.find(c => c.id === t.customerId) || null : null);
     // Restore discount if it exists
     if (t.discount > 0) {
@@ -226,7 +231,7 @@ export const Cashier = () => {
     const tx: Transaction = {
         id: nanoid(), date: new Date().toISOString(), cashierId: user?.id || 'u', cashierName: user?.name || 'U', storeId: user?.storeId,
         items: [...cart], subtotal: cartTotal, discount: calculatedDiscount, total: finalTotal, amountPaid: realAmountPaid, paymentMethod: isSplitPayment ? PaymentMethod.SPLIT : singlePaymentMethod,
-        payments: finalPayments, status, customerId: selectedCustomer?.id, customerName, customerPhone: selectedCustomer?.phone, dueDate: status === TransactionStatus.PARTIAL ? dueDate : undefined
+        payments: finalPayments, status, customerId: selectedCustomer?.id, customerName, customerPhone: customerPhone || selectedCustomer?.phone, customerAddress: customerAddress || selectedCustomer?.address, dueDate: status === TransactionStatus.PARTIAL ? dueDate : undefined
     };
     addTransaction(tx); 
     setCompletedTransaction(tx); 
@@ -239,12 +244,13 @@ export const Cashier = () => {
       setShowSuccessModal(false);
       setCompletedTransaction(null);
       setCart([]);
-      setCustomerName(''); setSelectedCustomer(null);
+      setCustomerName(''); setCustomerPhone(''); setCustomerAddress(''); setSelectedCustomer(null);
   };
 
   const handleClearCart = () => {
     if (cart.length > 0 && window.confirm('Are you sure you want to clear the cart? This action cannot be undone.')) {
       setCart([]);
+      setCustomerName(''); setCustomerPhone(''); setCustomerAddress('');
     }
   };
 
@@ -411,8 +417,8 @@ export const Cashier = () => {
           <div><strong>Cashier:</strong> <span class="info-value">${transactionToPrint.cashierName}</span></div>
           <div><strong>Receipt #:</strong> <span class="info-value">${transactionToPrint.id.substring(0,8)}</span></div>
           ${transactionToPrint.customerName ? `<div><strong>Customer:</strong> <span class="info-value">${transactionToPrint.customerName}</span></div>` : ''}
-          ${currentBranch?.address ? `<div><strong>Address:</strong> <span class="info-value">${currentBranch.address}</span></div>` : ''}
-          ${currentBranch?.phone ? `<div><strong>Contact:</strong> <span class="info-value">${currentBranch.phone}</span></div>` : ''}
+          ${(transactionToPrint as any).customerPhone ? `<div><strong>Phone:</strong> <span class="info-value">${(transactionToPrint as any).customerPhone}</span></div>` : ''}
+          ${(transactionToPrint as any).customerAddress ? `<div><strong>Address:</strong> <span class="info-value">${(transactionToPrint as any).customerAddress}</span></div>` : ''}
         </div>
 
         <div class="divider"></div>
@@ -724,24 +730,31 @@ export const Cashier = () => {
                     <div className="p-4 bg-gray-900 border-t border-gray-700">
                                                 <div className="mb-3">
                                                     <div className="flex gap-2">
-                                                        <select className="flex-1 bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={selectedCustomer?.id || ''} onChange={e => { const id = e.target.value; const c = branchCustomers.find(c => c.id === id) || null; setSelectedCustomer(c); setCustomerName(c?.name || ''); }}>
+                                                        <select className="flex-1 bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={selectedCustomer?.id || ''} onChange={e => { const id = e.target.value; const c = branchCustomers.find(c => c.id === id) || null; setSelectedCustomer(c); setCustomerName(c?.name || ''); setCustomerPhone(c?.phone || ''); setCustomerAddress(c?.address || ''); }}>
                                                             <option value="">-- No customer --</option>
                                                             {branchCustomers.map(c => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ''}</option>)}
                                                         </select>
                                                         <button onClick={() => setShowAddCustomerForm(prev => !prev)} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded">{showAddCustomerForm ? 'Cancel' : 'Add'}</button>
                                                     </div>
+                                                    <div className="mt-2 grid grid-cols-2 gap-2">
+                                                        <input type="text" placeholder="Customer Phone" className="bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
+                                                        <input type="text" placeholder="Customer Address" className="bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
+                                                    </div>
                                                     {showAddCustomerForm && (
                                                         <div className="mt-2 grid grid-cols-1 gap-2">
                                                             <input type="text" placeholder="Customer Name" className="w-full bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} />
                                                             <input type="text" placeholder="Customer Phone" className="w-full bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={newCustomerPhone} onChange={e => setNewCustomerPhone(e.target.value)} />
+                                                            <input type="text" placeholder="Customer Address" className="w-full bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={newCustomerAddress} onChange={e => setNewCustomerAddress(e.target.value)} />
                                                             <input type="email" placeholder="Customer Email" className="w-full bg-gray-800 border border-gray-600 text-white p-2 rounded text-sm" value={newCustomerEmail} onChange={e => setNewCustomerEmail(e.target.value)} />
                                                             <div className="flex gap-2">
                                                                 <button onClick={() => {
                                                                     if (!newCustomerName) { addNotification('Customer name is required', 'error'); return; }
-                                                                    const created = addCustomer({ name: newCustomerName, phone: newCustomerPhone, email: newCustomerEmail, storeId: user?.storeId });
+                                                                    const created = addCustomer({ name: newCustomerName, phone: newCustomerPhone, address: newCustomerAddress, email: newCustomerEmail, storeId: user?.storeId });
                                                                     setSelectedCustomer(created);
                                                                     setCustomerName(created.name || newCustomerName);
-                                                                    setNewCustomerName(''); setNewCustomerPhone(''); setNewCustomerEmail(''); setShowAddCustomerForm(false);
+                                                                    setCustomerPhone(newCustomerPhone);
+                                                                    setCustomerAddress(newCustomerAddress);
+                                                                    setNewCustomerName(''); setNewCustomerPhone(''); setNewCustomerAddress(''); setNewCustomerEmail(''); setShowAddCustomerForm(false);
                                                                 }} className="bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded">Save</button>
                                                                 <button onClick={() => setShowAddCustomerForm(false)} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded">Cancel</button>
                                                             </div>

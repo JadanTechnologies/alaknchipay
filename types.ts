@@ -157,6 +157,7 @@ export interface Transaction {
   status: TransactionStatus;
   customerName?: string;
   customerPhone?: string;
+  customerAddress?: string;
   customerId?: string; // optional link to an actual customer record
   notes?: string;
   refunds?: RefundLog[];
@@ -171,6 +172,7 @@ export interface Customer {
   id: string;
   name: string;
   phone?: string;
+  address?: string;
   email?: string;
   storeId?: string;
 }

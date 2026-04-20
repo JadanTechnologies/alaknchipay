@@ -315,6 +315,9 @@ const handlePrintReceipt = (tx: Transaction) => {
         <div class="info-row">Date: <span style="font-weight:700; color:#000;">${new Date(tx.date).toLocaleDateString()} ${new Date(tx.date).toLocaleTimeString()}</span></div>
         <div class="info-row">Cashier: <span style="font-weight:700; color:#000;">${tx.cashierName}</span></div>
         <div class="info-row">Receipt #: <span style="font-weight:700; color:#000;">${tx.id.substring(0,8)}</span></div>
+        ${tx.customerName ? `<div class="info-row">Customer: <span style="font-weight:700; color:#000;">${tx.customerName}</span></div>` : ''}
+        ${(tx as any).customerPhone ? `<div class="info-row">Phone: <span style="font-weight:700; color:#000;">${(tx as any).customerPhone}</span></div>` : ''}
+        ${(tx as any).customerAddress ? `<div class="info-row">Address: <span style="font-weight:700; color:#000;">${(tx as any).customerAddress}</span></div>` : ''}
         <div class="divider"></div>
         <table><thead><tr><th>Item</th><th class="center">Qty</th><th class="right">Amt</th></tr></thead>
         <tbody>${tx.items.map(i => `<tr><td class="item-name">${i.name}</td><td class="center">${i.quantity}</td><td class="right">${(i.sellingPrice*i.quantity).toFixed(2)}</td></tr>`).join('')}</tbody></table>

@@ -224,6 +224,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newCustomer = LocalStorage.Customers.create({
       name: c.name || '',
       phone: c.phone,
+      address: c.address,
       email: c.email,
       storeId: c.storeId
     });

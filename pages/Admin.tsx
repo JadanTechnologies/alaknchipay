@@ -275,30 +275,35 @@ export const Admin = () => {
       e.target.value = ''; 
   };
 
-  const handlePrintReceipt = (tx: Transaction) => {
-       const paymentRows = tx.paymentMethod === PaymentMethod.SPLIT 
-        ? tx.payments.map(p => `<tr><td>${p.method}</td><td class="right">${settings.currency}${p.amount.toFixed(2)}</td></tr>`).join('')
-        : `<tr><td>${tx.paymentMethod}</td><td class="right">${settings.currency}${tx.amountPaid.toFixed(2)}</td></tr>`;
+const handlePrintReceipt = (tx: Transaction) => {
+        const paymentRows = tx.paymentMethod === PaymentMethod.SPLIT 
+         ? tx.payments.map(p => `<tr><td>${p.method}</td><td class="right">${settings.currency}${p.amount.toFixed(2)}</td></tr>`).join('')
+         : `<tr><td>${tx.paymentMethod}</td><td class="right">${settings.currency}${tx.amountPaid.toFixed(2)}</td></tr>`;
       const isPaid = tx.amountPaid >= tx.total - 0.01;
       const receiptHtml = `
       <!DOCTYPE html><html><head><title>Receipt</title><style>
           @media print { @page { margin: 0; size: 80mm auto; } body { margin: 0; padding: 10px; } }
-          body { font-family: 'Courier New', monospace; width: 80mm; margin: 0 auto; padding: 10px; font-size: 12px; }
-          .header, .footer { text-align: center; } .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
-          table { width: 100%; border-collapse: collapse; } th { text-align: left; border-bottom: 1px dashed #000; }
-          .right { text-align: right; } .center { text-align: center; } .total-row { font-weight: bold; margin-top: 4px; display: flex; justify-content: space-between; }
+          body { font-family: 'Courier New', monospace; width: 80mm; margin: 0 auto; padding: 10px; font-size: 12px; color: #000000; font-weight: 500; }
+          .header, .footer { text-align: center; } .divider { border-bottom: 2px dashed #000; margin: 8px 0; }
+          table { width: 100%; border-collapse: collapse; } th { text-align: left; border-bottom: 2px solid #000; font-weight: 700; }
+          td { font-weight: 500; }
+          .right { text-align: right; } .center { text-align: center; } .total-row { font-weight: 900; margin-top: 6px; display: flex; justify-content: space-between; font-size: 14px; }
+          .info-row { font-weight: 600; }
+          .item-name { font-weight: 600; }
+          .status { text-align: center; font-weight: 800; border: 2px solid #000; padding: 4px; margin: 10px 0; background: #000; color: #fff; }
+          .section-header { font-weight: 700; font-size: 11px; margin-bottom: 4px; border-bottom: 1px solid #000; padding-bottom: 2px; }
       </style></head><body>
-        <div class="header"><div style="font-weight:bold; font-size:16px;">${settings.name}</div><div>${currentBranch?.name}</div></div>
+        <div class="header"><div style="font-weight:900; font-size:18px;">${settings.name}</div><div style="font-weight:700; font-size:14px;">${currentBranch?.name}</div></div>
         <div class="divider"></div>
-        <div>Date: ${new Date(tx.date).toLocaleDateString()} ${new Date(tx.date).toLocaleTimeString()}</div>
-        <div>Receipt #: ${tx.id.substring(0,8)}</div>
+        <div class="info-row">Date: ${new Date(tx.date).toLocaleDateString()} ${new Date(tx.date).toLocaleTimeString()}</div>
+        <div class="info-row">Receipt #: ${tx.id.substring(0,8)}</div>
         <div class="divider"></div>
         <table><thead><tr><th>Item</th><th class="center">Qty</th><th class="right">Amt</th></tr></thead>
-        <tbody>${tx.items.map(i => `<tr><td>${i.name}</td><td class="center">${i.quantity}</td><td class="right">${(i.sellingPrice*i.quantity).toFixed(2)}</td></tr>`).join('')}</tbody></table>
+        <tbody>${tx.items.map(i => `<tr><td class="item-name">${i.name}</td><td class="center">${i.quantity}</td><td class="right">${(i.sellingPrice*i.quantity).toFixed(2)}</td></tr>`).join('')}</tbody></table>
         <div class="divider"></div>
         <div class="total-row"><span>TOTAL</span><span>${settings.currency}${tx.total.toFixed(2)}</span></div>
         <div style="margin-top:5px"><table>${paymentRows}</table></div>
-        <div style="text-align:center; margin-top:10px; font-weight:bold; border:1px solid #000;">${isPaid?'PAID':'PARTIAL'}</div>
+        <div class="status">${isPaid?'PAID':'PARTIAL'}</div>
         <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}</script>
       </body></html>`;
       const win = window.open('','_blank','width=400,height=600'); 

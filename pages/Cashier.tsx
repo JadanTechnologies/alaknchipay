@@ -343,30 +343,40 @@ export const Cashier = () => {
             width: 80mm; 
             margin: 0 auto; 
             padding: 5px;
-            background: #fff;
-            color: #000;
-            font-size: 11px;
-            line-height: 1.2;
+            background: #ffffff;
+            color: #000000;
+            font-size: 12px;
+            line-height: 1.3;
+            font-weight: 500;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .header { text-align: center; margin-bottom: 10px; }
-          .logo { font-size: 16px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
-          .branch { font-size: 12px; font-weight: bold; margin-bottom: 3px; }
-          .info { font-size: 10px; margin-bottom: 2px; }
-          .divider { border-bottom: 1px dashed #000; margin: 5px 0; }
+          .logo { font-size: 18px; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; color: #000000; }
+          .branch { font-size: 14px; font-weight: 700; margin-bottom: 3px; color: #000000; }
+          .info { font-size: 11px; margin-bottom: 2px; color: #000000; }
+          .info strong { font-weight: 700; color: #000000; }
+          .divider { border-bottom: 2px dashed #000000; margin: 8px 0; }
+          .divider-thin { border-bottom: 1px solid #000000; margin: 4px 0; }
           table { width: 100%; border-collapse: collapse; }
-          th { text-align: left; border-bottom: 1px dashed #000; padding: 2px 0; font-size: 10px; }
-          td { padding: 2px 0; vertical-align: top; }
+          th { text-align: left; border-bottom: 2px solid #000000; padding: 3px 0; font-size: 11px; font-weight: 700; color: #000000; }
+          td { padding: 3px 0; vertical-align: top; color: #000000; font-weight: 500; }
           .right { text-align: right; }
           .center { text-align: center; }
-          .total-section { border-top: 1px dashed #000; margin-top: 5px; padding-top: 2px; }
-          .total-row { font-weight: bold; font-size: 13px; margin-top: 4px; display: flex; justify-content: space-between; }
-          .sub-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px; }
-          .footer { text-align: center; font-size: 10px; margin-top: 10px; }
-          .status { text-align: center; font-weight: bold; border: 1px solid #000; padding: 2px; margin: 5px 0; }
+          .total-section { border-top: 2px solid #000000; margin-top: 8px; padding-top: 4px; }
+          .total-row { font-weight: 900; font-size: 15px; margin-top: 6px; display: flex; justify-content: space-between; color: #000000; }
+          .sub-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; font-weight: 600; color: #000000; }
+          .footer { text-align: center; font-size: 11px; margin-top: 12px; font-weight: 600; color: #000000; }
+          .status { text-align: center; font-weight: 800; border: 2px solid #000000; padding: 4px; margin: 8px 0; font-size: 12px; background: #000000; color: #ffffff; }
+          .item-name { font-weight: 600; }
+          .item-qty { font-weight: 600; }
+          .item-price { font-weight: 600; }
+          .section-header { font-weight: 700; font-size: 11px; margin-bottom: 4px; color: #000000; border-bottom: 1px solid #000000; padding-bottom: 2px; }
+          .payment-row td { font-weight: 600; color: #000000; }
         </style>
       </head>
       <body>
-        <div class="header">
+<div class="header">
           ${settings.logoUrl ? `<img src="${settings.logoUrl}" style="max-width: 60px; max-height: 60px; margin-bottom: 5px;" />` : ''}
           <div class="logo">${settings.name}</div>
           <div class="branch">${currentBranch?.name || 'Main Branch'}</div>
@@ -397,9 +407,9 @@ export const Cashier = () => {
           <tbody>
             ${transactionToPrint.items.map(item => `
               <tr>
-                <td>${item.name}</td>
-                <td class="center">x${item.quantity}</td>
-                <td class="right">${settings.currency}${(item.sellingPrice * item.quantity).toFixed(2)}</td>
+                <td class="item-name">${item.name}</td>
+                <td class="center item-qty">x${item.quantity}</td>
+                <td class="right item-price">${settings.currency}${(item.sellingPrice * item.quantity).toFixed(2)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -425,28 +435,28 @@ export const Cashier = () => {
         <div class="divider"></div>
 
         <div style="margin-bottom: 5px;">
-          <div style="font-weight: bold; font-size: 10px; margin-bottom: 2px;">PAYMENT DETAILS</div>
-          <table>
+          <div class="section-header">PAYMENT DETAILS</div>
+          <table class="payment-row">
             ${paymentRows}
           </table>
         </div>
 
         <div class="divider"></div>
         
-        <div class="sub-row" style="font-weight: bold;">
+        <div class="sub-row">
           <span>Amount Paid:</span>
           <span>${settings.currency}${transactionToPrint.amountPaid.toFixed(2)}</span>
         </div>
         ${!isPaid ? `
-        <div class="sub-row" style="color: red;">
+        <div class="sub-row" style="font-weight: 700;">
           <span>Balance Due:</span>
           <span>${settings.currency}${balance.toFixed(2)}</span>
         </div>
         ` : `
          <div class="sub-row">
-          <span>Change:</span>
-          <span>${settings.currency}${(transactionToPrint.amountPaid - transactionToPrint.total).toFixed(2)}</span>
-        </div>
+           <span>Change:</span>
+           <span>${settings.currency}${(transactionToPrint.amountPaid - transactionToPrint.total).toFixed(2)}</span>
+         </div>
         `}
         
         <div class="status">

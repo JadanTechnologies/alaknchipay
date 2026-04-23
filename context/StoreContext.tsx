@@ -139,6 +139,75 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadData();
   }, [authUser]);
 
+  // Listen for localStorage changes from other tabs/windows and sync slices
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      try {
+        // If key is null, reload everything
+        if (!e.key) {
+          setUsers(LocalStorage.Users.getAll());
+          setRoles(LocalStorage.Roles.getAll());
+          const perms = localStorage.getItem('alkanchipay_permissions');
+          setPermissions(perms ? JSON.parse(perms) : []);
+          setProducts(LocalStorage.Products.getAll());
+          setTransactions(LocalStorage.Transactions.getAll());
+          setDeletedTransactions(LocalStorage.Transactions.getDeletedAll());
+          setCustomers(LocalStorage.Customers.getAll());
+          setPurchaseOrders(LocalStorage.PurchaseOrders.getAll());
+          setProductTransfers(LocalStorage.ProductTransfers.getAll());
+          setSettings(LocalStorage.Settings.get());
+          setBranches(LocalStorage.Branches.getAll());
+          setCategories(LocalStorage.Categories.getAll());
+          setProductTypes(LocalStorage.ProductTypes.getAll());
+          const expCats = localStorage.getItem('alkanchipay_expense_categories');
+          setExpenseCategories(expCats ? JSON.parse(expCats) : []);
+          setExpenses(LocalStorage.Expenses.getAll());
+          setActivityLogs(LocalStorage.ActivityLogs.getAll());
+          return;
+        }
+
+        switch (e.key) {
+          case 'alkanchipay_transactions':
+            setTransactions(LocalStorage.Transactions.getAll());
+            break;
+          case 'alkanchipay_products':
+            setProducts(LocalStorage.Products.getAll());
+            break;
+          case 'alkanchipay_purchase_orders':
+            setPurchaseOrders(LocalStorage.PurchaseOrders.getAll());
+            break;
+          case 'alkanchipay_settings':
+            setSettings(LocalStorage.Settings.get());
+            break;
+          case 'alkanchipay_activity_logs':
+            setActivityLogs(LocalStorage.ActivityLogs.getAll());
+            break;
+          case 'alkanchipay_expenses':
+            setExpenses(LocalStorage.Expenses.getAll());
+            break;
+          case 'alkanchipay_branches':
+            setBranches(LocalStorage.Branches.getAll());
+            break;
+          case 'alkanchipay_users':
+            setUsers(LocalStorage.Users.getAll());
+            break;
+          case 'alkanchipay_purchase_orders':
+            setPurchaseOrders(LocalStorage.PurchaseOrders.getAll());
+            break;
+          default:
+            // ignore other keys
+            break;
+        }
+      } catch (err) {
+        // Protect against any parse errors
+        console.error('Error handling storage event', err);
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   // Notification Logic
   const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));

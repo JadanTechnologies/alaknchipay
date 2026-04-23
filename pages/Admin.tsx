@@ -32,6 +32,7 @@ export const Admin = () => {
   const currentBranch = branches.find(b => b.id === user?.storeId);
   const branchExpenses = expenses.filter(e => e.storeId === user?.storeId);
     const branchCustomers = customers.filter(c => c.storeId === user?.storeId);
+   const cashiers = users.filter(u => u.role === Role.CASHIER && u.storeId === user?.storeId);
   const debtTransactions = transactions.filter(t => t.status === TransactionStatus.PARTIAL || (t.paymentMethod === PaymentMethod.CREDIT && t.amountPaid < t.total));
   
   // Dashboard Metrics

@@ -331,8 +331,15 @@ const handlePrintReceipt = (tx: Transaction) => {
         ${(tx as any).customerPhone ? `<div class="info-row">Phone: <span style="font-weight:700; color:#000;">${(tx as any).customerPhone}</span></div>` : ''}
         ${(tx as any).customerAddress ? `<div class="info-row">Address: <span style="font-weight:700; color:#000;">${(tx as any).customerAddress}</span></div>` : ''}
         <div class="divider"></div>
-        <table><thead><tr><th>Item</th><th class="center">Qty</th><th class="right">Amt</th></tr></thead>
-        <tbody>${tx.items.map(i => `<tr><td class="item-name">${getItemName(i)}</td><td class="center">${i.quantity}</td><td class="right">${(i.sellingPrice*i.quantity).toFixed(2)}</td></tr>`).join('')}</tbody></table>
+        <table><thead><tr><th>Item</th><th class="center">Qty</th><th class="right">Amt</th><th class="right">Change</th></tr></thead>
+        <tbody>${tx.items.map(i => {
+            const prod = products.find(p => p.id === i.id);
+            const expected = prod?.sellingPrice ?? i.sellingPrice;
+            const itemChange = (i.sellingPrice - expected) * (i.quantity || 1);
+            return `<tr><td class="item-name">${getItemName(i)}</td><td class="center">${i.quantity}</td><td class="right">${(i.sellingPrice*i.quantity).toFixed(2)}</td><td class="right">${itemChange.toFixed(2)}</td></tr>`;
+        }).join('')}</tbody></table>
+        <div class="divider"></div>
+        <div class="sub-row"><span>Total Change:</span><span>${settings.currency}${tx.items.reduce((s,i) => { const prod = products.find(p => p.id === i.id); const expected = prod?.sellingPrice ?? i.sellingPrice; return s + ((i.sellingPrice - expected) * (i.quantity || 1)); }, 0).toFixed(2)}</span></div>
         <div class="divider"></div>
         <div class="total-row"><span>TOTAL</span><span>${settings.currency}${tx.total.toFixed(2)}</span></div>
         <div style="margin-top:5px"><table>${paymentRows}</table></div>

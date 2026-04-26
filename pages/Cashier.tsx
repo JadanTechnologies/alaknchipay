@@ -424,22 +424,28 @@ export const Cashier = () => {
         <div class="divider"></div>
 
         <table>
-          <thead>
-            <tr>
-              <th style="width: 50%;">Item</th>
-              <th class="center" style="width: 15%;">Qty</th>
-              <th class="right" style="width: 35%;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${transactionToPrint.items.map(item => `
-              <tr>
-                <td class="item-name">${item.name}</td>
-                <td class="center item-qty">x${item.quantity}</td>
-                <td class="right item-price">${settings.currency}${(item.sellingPrice * item.quantity).toFixed(2)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
+                    <thead>
+                        <tr>
+                            <th style="width: 45%;">Item</th>
+                            <th class="center" style="width: 15%;">Qty</th>
+                            <th class="right" style="width: 20%;">Amount</th>
+                            <th class="right" style="width: 20%;">Change</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${transactionToPrint.items.map(item => {
+                            const prod = products.find(p => p.id === item.id);
+                            const expected = prod?.sellingPrice ?? item.sellingPrice;
+                            const itemChange = (item.sellingPrice - expected) * (item.quantity || 1);
+                            return `
+                            <tr>
+                                <td class="item-name">${item.name || prod?.name || 'Unknown Item'}</td>
+                                <td class="center item-qty">x${item.quantity}</td>
+                                <td class="right item-price">${settings.currency}${(item.sellingPrice * item.quantity).toFixed(2)}</td>
+                                <td class="right">${settings.currency}${itemChange.toFixed(2)}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
         </table>
 
         <div class="total-section">
@@ -458,6 +464,11 @@ export const Cashier = () => {
             <span>${settings.currency}${transactionToPrint.total.toFixed(2)}</span>
           </div>
         </div>
+
+                <div class="sub-row">
+                    <span>Total Change:</span>
+                    <span>${settings.currency}${transactionToPrint.items.reduce((s, it) => { const prod = products.find(p => p.id === it.id); const expected = prod?.sellingPrice ?? it.sellingPrice; return s + ((it.sellingPrice - expected) * (it.quantity || 1)); }, 0).toFixed(2)}</span>
+                </div>
 
         <div class="divider"></div>
 
@@ -512,18 +523,22 @@ export const Cashier = () => {
 
   const getEndDayData = () => {
     const inventoryMovement = todaysTxs.flatMap(t => t.items).reduce((acc: any, item) => {
-        if(!acc[item.name]) acc[item.name] = { qty: 0, val: 0, stock: products.find(p=>p.id===item.id)?.stock || 0 };
+        if(!acc[item.name]) acc[item.name] = { qty: 0, val: 0, stock: products.find(p=>p.id===item.id)?.stock || 0, change: 0 };
         acc[item.name].qty += item.quantity;
         acc[item.name].val += (item.sellingPrice * item.quantity);
+        const prod = products.find(p => p.id === item.id);
+        const expected = prod?.sellingPrice ?? item.sellingPrice;
+        acc[item.name].change += (item.sellingPrice - expected) * item.quantity;
         return acc;
     }, {});
 
     const invRows = Object.entries(inventoryMovement).map(([name, data]: any) => [
-        name, 
+        name,
         (data.qty + data.stock).toString(), // Opening
         data.qty.toString(), // Sold
         data.stock.toString(), // Closing
-        `${settings.currency}${data.val.toFixed(2)}`
+        `${settings.currency}${data.val.toFixed(2)}`,
+        `${settings.currency}${data.change.toFixed(2)}`
     ]);
     return invRows;
   };
@@ -537,13 +552,22 @@ export const Cashier = () => {
     doc.text(`Generated: ${new Date().toLocaleTimeString()}`, 14, 34);
 
     // Summary Table
+    const totalChange = todaysTxs.reduce((sumT, t) => {
+        return sumT + t.items.reduce((s, i) => {
+            const prod = products.find(p => p.id === i.id);
+            const expected = prod?.sellingPrice ?? i.sellingPrice;
+            return s + ((i.sellingPrice - expected) * (i.quantity || 1));
+        }, 0);
+    }, 0);
+
     autoTable(doc, {
         head: [['Metric', 'Value']],
         body: [
             ['Total Sales Revenue', `${settings.currency}${totalSales.toFixed(2)}`],
             ['Cash in Hand', `${settings.currency}${cashInHand.toFixed(2)}`],
             ['Transactions Count', todaysTxs.length.toString()],
-            ['Expenses Raised', myExpenses.length.toString()]
+            ['Expenses Raised', myExpenses.length.toString()],
+            ['Total Change (Sold - Expected)', `${settings.currency}${totalChange.toFixed(2)}`]
         ],
         startY: 40,
         theme: 'grid',
@@ -569,7 +593,7 @@ export const Cashier = () => {
     const invRows = getEndDayData();
 
     autoTable(doc, {
-        head: [['Item', 'Opening (Est)', 'Sold', 'Closing', 'Total Sales']],
+        head: [['Item', 'Opening (Est)', 'Sold', 'Closing', 'Total Sales', 'Change']],
         body: invRows,
         startY: finalY + 5,
         theme: 'grid'
@@ -611,6 +635,7 @@ export const Cashier = () => {
               <tr><td>Cash in Hand</td><td>${settings.currency}${cashInHand.toFixed(2)}</td></tr>
               <tr><td>Transactions</td><td>${todaysTxs.length}</td></tr>
               <tr><td>Expenses</td><td>${myExpenses.length}</td></tr>
+              <tr><td>Total Change (Sold - Expected)</td><td>${settings.currency}${todaysTxs.reduce((sumT, t) => { return sumT + t.items.reduce((s, i) => { const prod = products.find(p => p.id === i.id); const expected = prod?.sellingPrice ?? i.sellingPrice; return s + ((i.sellingPrice - expected) * (i.quantity || 1)); }, 0); }, 0).toFixed(2)}</td></tr>
           </table>
 
           <h3>Payment Breakdown</h3>
@@ -621,8 +646,8 @@ export const Cashier = () => {
 
           <h3>Inventory Movement</h3>
           <table>
-              <tr><th>Item</th><th>Opening</th><th>Sold</th><th>Closing</th><th>Total Sales</th></tr>
-              ${invRows.map(row => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td></tr>`).join('')}
+              <tr><th>Item</th><th>Opening</th><th>Sold</th><th>Closing</th><th>Total Sales</th><th>Change</th></tr>
+              ${invRows.map(row => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[5]}</td></tr>`).join('')}
           </table>
           <script>window.onload = function() { window.print(); window.onafterprint = function(){ window.close(); } };</script>
       </body>

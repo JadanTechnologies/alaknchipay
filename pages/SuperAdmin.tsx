@@ -101,6 +101,12 @@ export const SuperAdmin = () => {
         return tDate >= start && tDate <= end && (!filterCashier || t.cashierId === filterCashier);
     });
 
+    // Helper to safely get an item name from different possible shapes
+    const getItemName = (item: any) => {
+        if (!item) return 'Unknown Item';
+        return item.name || item.productName || item.itemName || products.find(p => p.id === item.id)?.name || 'Unknown Item';
+    };
+
     const recentGlobalTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10);
     const recentSystemActivities = [...activityLogs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10);
 
@@ -142,11 +148,39 @@ export const SuperAdmin = () => {
         : [];
 
     const handleExportPlatformData = () => {
-        const headers = ['Transaction ID', 'Date', 'Store/Cashier', 'Items Count', 'Payment Method', 'Status', 'Total Amount'];
-        const rows = filteredTransactions.map(t => [
-            t.id, new Date(t.date).toLocaleString(), t.cashierName, t.items.length, t.paymentMethod, t.status, t.total.toFixed(2)
-        ]);
+        const headers = ['Transaction ID', 'Date', 'Store/Cashier', 'Items', 'Items Count', 'Payment Method', 'Status', 'Total Amount', 'Change'];
+        const rows = filteredTransactions.map(t => {
+            const itemNames = t.items.map(i => getItemName(i)).join(' | ');
+            const change = t.items.reduce((sum, i) => {
+                const prod = products.find(p => p.id === i.id);
+                const expected = prod?.sellingPrice ?? i.sellingPrice;
+                return sum + ((i.sellingPrice - expected) * (i.quantity || 1));
+            }, 0);
+            return [t.id, new Date(t.date).toLocaleString(), `${branches.find(b => b.id === t.storeId)?.name || 'Unknown'} / ${t.cashierName}`, `"${itemNames.replace(/"/g, '""')}"`, t.items.length, t.paymentMethod, t.status, t.total.toFixed(2), change.toFixed(2)];
+        });
         downloadCSV([headers.join(','), ...rows.map(r => r.join(','))].join('\n'), `platform_data.csv`);
+    };
+
+    const handleExportTransactionsPDF = () => {
+        const doc = new jsPDF();
+        doc.setFontSize(16); doc.text(settings.name, 14, 16);
+        doc.setFontSize(12); doc.text(`Transactions Report`, 14, 22);
+        doc.setFontSize(10); doc.text(`Period: ${filterStartDate || 'ALL'} to ${filterEndDate || 'ALL'}`, 14, 28);
+
+        const columns = ['Date', 'Branch/Cashier', 'Items', 'Total', 'Change', 'Status'];
+        const rows = filteredTransactions.map(t => {
+            const itemNames = t.items.map(i => getItemName(i)).join(', ');
+            const change = t.items.reduce((sum, i) => {
+                const prod = products.find(p => p.id === i.id);
+                const expected = prod?.sellingPrice ?? i.sellingPrice;
+                return sum + ((i.sellingPrice - expected) * (i.quantity || 1));
+            }, 0);
+            return [new Date(t.date).toLocaleString(), `${branches.find(b => b.id === t.storeId)?.name || 'Unknown'} / ${t.cashierName}`, itemNames, `${settings.currency}${t.total.toFixed(2)}`, `${settings.currency}${change.toFixed(2)}`, t.status];
+        });
+
+        autoTable(doc, { head: [columns], body: rows, startY: 36, styles: { fontSize: 8 } });
+        doc.save(`Transactions_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        addNotification('Transactions PDF downloaded', 'success');
     };
 
     const downloadCSV = (content: string, filename: string) => {
@@ -201,6 +235,14 @@ export const SuperAdmin = () => {
         const revenue = bTransactions.reduce((sum, t) => sum + t.total, 0);
         const totalExpenses = bExpenses.reduce((sum, e) => sum + e.amount, 0);
         const netProfit = revenue - totalExpenses;
+        const totalChange = bTransactions.reduce((sumT, t) => {
+            const txChange = t.items.reduce((s, i) => {
+                const prod = products.find(p => p.id === i.id);
+                const expected = prod?.sellingPrice ?? i.sellingPrice;
+                return s + ((i.sellingPrice - expected) * (i.quantity || 1));
+            }, 0);
+            return sumT + txChange;
+        }, 0);
 
         // Format currency for PDF (use NGN instead of special character)
         const formatCurrencyPDF = (amount: number) => `NGN ${amount.toFixed(2)}`;
@@ -217,7 +259,8 @@ export const SuperAdmin = () => {
             body: [
                 ['Total Revenue (Sales)', formatCurrencyPDF(revenue)],
                 ['Total Operational Expenses', formatCurrencyPDF(totalExpenses)],
-                ['Net Profit', formatCurrencyPDF(netProfit)]
+                ['Net Profit', formatCurrencyPDF(netProfit)],
+                ['Total Change (Sold - Expected)', formatCurrencyPDF(totalChange)]
             ],
             startY: 40,
             theme: 'grid',
@@ -583,9 +626,14 @@ export const SuperAdmin = () => {
                     <div className="flex items-center gap-4">
                         <HeaderTools />
                         {(activeTab === 'overview' || activeTab === 'transactions') && (
-                            <button onClick={handleExportPlatformData} className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition">
-                                <Icons.Download size={16} /> Export Data
-                            </button>
+                            <div className="flex gap-2">
+                                <button onClick={handleExportPlatformData} className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition">
+                                    <Icons.Download size={16} /> Export CSV
+                                </button>
+                                <button onClick={handleExportTransactionsPDF} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition">
+                                    <Icons.FileText size={16} /> Export PDF
+                                </button>
+                            </div>
                         )}
                     </div>
                 </header>
@@ -927,7 +975,14 @@ export const SuperAdmin = () => {
                                 <thead className="bg-gray-900/50 text-gray-400 text-xs uppercase font-bold sticky top-0">
                                     <tr>
                                         <th className="p-4 w-8"><input type="checkbox" className="w-4 h-4 accent-red-600" checked={selectedTransactions.size === filteredTransactions.length && filteredTransactions.length > 0} onChange={e => { if(e.target.checked) { setSelectedTransactions(new Set(filteredTransactions.map(t => t.id))); } else { setSelectedTransactions(new Set()); } }} /></th>
-                                        <th className="p-4">Date</th><th className="p-4">Branch</th><th className="p-4">Cashier</th><th className="p-4">Items</th><th className="p-4">Total</th><th className="p-4">Status</th><th className="p-4">Action</th>
+                                        <th className="p-4">Date</th>
+                                        <th className="p-4">Branch</th>
+                                        <th className="p-4">Cashier</th>
+                                        <th className="p-4">Items</th>
+                                        <th className="p-4">Total</th>
+                                        <th className="p-4">Change</th>
+                                        <th className="p-4">Status</th>
+                                        <th className="p-4">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700 text-gray-200">
@@ -937,8 +992,9 @@ export const SuperAdmin = () => {
                                             <td className="p-4">{new Date(t.date).toLocaleString()}</td>
                                             <td className="p-4 text-blue-400">{branches.find(b => b.id === t.storeId)?.name}</td>
                                             <td className="p-4">{t.cashierName}</td>
-                                            <td className="p-4">{t.items.length}</td>
+                                            <td className="p-4 break-words max-w-[300px]">{t.items.map(i => getItemName(i)).join(', ')}</td>
                                             <td className="p-4 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td>
+                                            <td className="p-4 font-bold text-red-400">{settings.currency}{t.items.reduce((sum, i) => { const prod = products.find(p => p.id === i.id); const expected = prod?.sellingPrice ?? i.sellingPrice; return sum + ((i.sellingPrice - expected) * (i.quantity || 1)); }, 0).toFixed(2)}</td>
                                             <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${t.status === 'COMPLETED' ? 'bg-green-900 text-green-400' : 'bg-orange-900 text-orange-400'}`}>{t.status}</span></td>
                                             <td className="p-4 flex gap-2"><button onClick={() => { if(window.confirm('Move to recycle bin?')) deleteTransaction(t.id); }} className="text-red-400 hover:text-red-300"><Icons.Delete size={16}/></button></td>
                                         </tr>

@@ -26,10 +26,11 @@ export const Admin = () => {
     const [newCustomerName, setNewCustomerName] = useState('');
     const [newCustomerPhone, setNewCustomerPhone] = useState('');
   
-  // Branch Data
-  const products = allProducts.filter(p => p.storeId === user?.storeId);
-  const transactions = allTransactions.filter(t => t.storeId === user?.storeId);
-  const currentBranch = branches.find(b => b.id === user?.storeId);
+    // Branch Data
+    const isAdminViewAll = user?.role === Role.SUPER_ADMIN || user?.role === Role.ADMIN;
+    const products = isAdminViewAll ? allProducts : allProducts.filter(p => p.storeId === user?.storeId);
+    const transactions = isAdminViewAll ? allTransactions : allTransactions.filter(t => t.storeId === user?.storeId);
+    const currentBranch = isAdminViewAll ? undefined : branches.find(b => b.id === user?.storeId);
   const branchExpenses = expenses.filter(e => e.storeId === user?.storeId);
     const branchCustomers = customers.filter(c => c.storeId === user?.storeId);
    const cashiers = users.filter(u => u.role === Role.CASHIER && u.storeId === user?.storeId);
@@ -914,8 +915,9 @@ const handlePrintReceipt = (tx: Transaction) => {
                             </tbody>
                              <tfoot className="bg-gray-900 font-bold text-white">
                                 <tr>
-                                    <td colSpan={8} className="p-4 text-right">Grand Total Sales:</td>
+                                    <td colSpan={8} className="p-4 text-right">Grand Totals:</td>
                                     <td className="p-4">{settings.currency}{detailedReportData.grandTotalSales.toFixed(2)}</td>
+                                    <td className="p-4">{settings.currency}{(detailedReportData as any).grandTotalChange?.toFixed(2) ?? '0.00'}</td>
                                     <td className="p-4 text-green-400">{settings.currency}{detailedReportData.grandTotalProfit.toFixed(2)}</td>
                                 </tr>
                             </tfoot>

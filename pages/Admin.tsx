@@ -100,24 +100,32 @@ export const Admin = () => {
       const end = filterEndDate ? new Date(filterEndDate).getTime() + 86400000 : Infinity;
       return tDate >= start && tDate <= end && (!filterCashier || t.cashierId === filterCashier);
   });
+    // Helper to safely get an item name from different possible shapes
+    const getItemName = (item: any) => {
+        if (!item) return 'Unknown Item';
+        return item.name || item.productName || item.itemName || products.find(p => p.id === item.id)?.name || 'Unknown Item';
+    };
   
   // Detailed Report Logic
   const detailedReportData = useMemo(() => {
-    let rowIndex = 1, grandTotalCost = 0, grandTotalSales = 0, grandTotalProfit = 0, grandTotalBalance = 0, grandDiscount = 0;
+        let rowIndex = 1, grandTotalCost = 0, grandTotalSales = 0, grandTotalProfit = 0, grandTotalBalance = 0, grandDiscount = 0, grandTotalChange = 0;
     
     const rows = filteredReportTransactions.flatMap(t => {
       const itemDiscountShare = t.discount / (t.items.length || 1);
 
-      return t.items.map(item => {
-        const prod = products.find(p => p.id === item.id);
-        const qtySold = item.quantity;
+            return t.items.map(item => {
+                const prod = products.find(p => p.id === item.id);
+                const qtySold = item.quantity;
         const currentStock = prod ? prod.stock : 0;
         const qtyBefore = currentStock + qtySold; 
         const unitCost = item.costPrice || prod?.costPrice || 0;
         const unitPrice = item.sellingPrice;
-        
-        const totalCost = unitCost * qtySold;
-        const totalSalesRaw = unitPrice * qtySold;
+                const totalCost = unitCost * qtySold;
+                const totalSalesRaw = unitPrice * qtySold;
+                // expected sales based on inventory selling price (POS expected)
+                const expectedUnitPrice = prod?.sellingPrice ?? item.sellingPrice;
+                const expectedTotalSales = expectedUnitPrice * qtySold;
+                const change = totalSalesRaw - expectedTotalSales;
         const discount = itemDiscountShare; 
         const balance = totalSalesRaw - discount;
         const profit = balance - totalCost;
@@ -127,10 +135,11 @@ export const Admin = () => {
         grandDiscount += discount;
         grandTotalBalance += balance;
         grandTotalProfit += profit;
+                grandTotalChange += change;
 
-        return {
-          sn: rowIndex++, 
-          itemName: item.name, 
+                return {
+                    sn: rowIndex++, 
+                    itemName: getItemName(item), 
           qtyBefore: qtyBefore,
           qtySold: qtySold, 
           qtyRemaining: currentStock,
@@ -140,14 +149,15 @@ export const Admin = () => {
           totalSales: totalSalesRaw, 
           discount,
           balance,
-          profit,
+                    profit,
+                    change,
           cashier: t.cashierName, 
           date: new Date(t.date).toLocaleString(),
           paymentMethod: t.paymentMethod === PaymentMethod.SPLIT ? 'SPLIT' : t.paymentMethod
         };
       });
     });
-    return { rows, grandTotalCost, grandTotalSales, grandTotalProfit, grandTotalBalance, grandDiscount };
+        return { rows, grandTotalCost, grandTotalSales, grandTotalProfit, grandTotalBalance, grandDiscount, grandTotalChange };
   }, [filteredReportTransactions, products]);
 
   // Actions
@@ -321,7 +331,7 @@ const handlePrintReceipt = (tx: Transaction) => {
         ${(tx as any).customerAddress ? `<div class="info-row">Address: <span style="font-weight:700; color:#000;">${(tx as any).customerAddress}</span></div>` : ''}
         <div class="divider"></div>
         <table><thead><tr><th>Item</th><th class="center">Qty</th><th class="right">Amt</th></tr></thead>
-        <tbody>${tx.items.map(i => `<tr><td class="item-name">${i.name}</td><td class="center">${i.quantity}</td><td class="right">${(i.sellingPrice*i.quantity).toFixed(2)}</td></tr>`).join('')}</tbody></table>
+        <tbody>${tx.items.map(i => `<tr><td class="item-name">${getItemName(i)}</td><td class="center">${i.quantity}</td><td class="right">${(i.sellingPrice*i.quantity).toFixed(2)}</td></tr>`).join('')}</tbody></table>
         <div class="divider"></div>
         <div class="total-row"><span>TOTAL</span><span>${settings.currency}${tx.total.toFixed(2)}</span></div>
         <div style="margin-top:5px"><table>${paymentRows}</table></div>
@@ -435,10 +445,10 @@ const handlePrintReceipt = (tx: Transaction) => {
     doc.setFontSize(10); doc.text(`Period: ${filterStartDate || 'All'} to ${filterEndDate || 'All'} | Generated: ${new Date().toLocaleString()}`, 14, 34);
 
     if (reportViewMode === 'detailed') {
-        const columns = ["S/N", "Item", "Qty Before", "Sold", "Rem", "Method", "Unit Cost", "Unit Price", "Total Cost", "Total Sales", "Profit", "Cashier", "Date"];
+        const columns = ["S/N", "Item", "Qty Before", "Sold", "Rem", "Method", "Unit Cost", "Unit Price", "Total Cost", "Total Sales", "Change", "Profit", "Cashier", "Date"];
         const rows = detailedReportData.rows.map(r => [
             r.sn, r.itemName, r.qtyBefore, r.qtySold, r.qtyRemaining, r.paymentMethod,
-            r.unitCost.toFixed(2), r.unitPrice.toFixed(2), r.totalCost.toFixed(2), r.totalSales.toFixed(2), r.profit.toFixed(2),
+            r.unitCost.toFixed(2), r.unitPrice.toFixed(2), r.totalCost.toFixed(2), r.totalSales.toFixed(2), r.change.toFixed(2), r.profit.toFixed(2),
             r.cashier, r.date.split(',')[0]
         ]);
         autoTable(doc, { 
@@ -454,13 +464,14 @@ const handlePrintReceipt = (tx: Transaction) => {
                 3: { cellWidth: 10, halign: 'center' },
                 4: { cellWidth: 10, halign: 'center' },
                 5: { cellWidth: 15 },
-                6: { cellWidth: 15, halign: 'right' },
-                7: { cellWidth: 15, halign: 'right' },
-                8: { cellWidth: 18, halign: 'right' },
-                9: { cellWidth: 18, halign: 'right' },
-                10: { cellWidth: 15, halign: 'right' },
-                11: { cellWidth: 20 },
-                12: { cellWidth: 20 }
+                    6: { cellWidth: 15, halign: 'right' },
+                    7: { cellWidth: 15, halign: 'right' },
+                    8: { cellWidth: 18, halign: 'right' },
+                    9: { cellWidth: 18, halign: 'right' },
+                    10: { cellWidth: 15, halign: 'right' }, // Change
+                    11: { cellWidth: 15, halign: 'right' }, // Profit
+                    12: { cellWidth: 20 },
+                    13: { cellWidth: 20 }
             },
             alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 10, right: 10 }
@@ -496,6 +507,7 @@ const handlePrintReceipt = (tx: Transaction) => {
         let grandTotalAfterDiscount = 0;
         let grandTotalCostPrice = 0;
         let grandTotalSellPrice = 0;
+        let grandTotalChange = 0;
         
         const rows = filteredReportTransactions.flatMap(t => {
             const itemDiscountShare = t.discount / (t.items.length || 1);
@@ -504,6 +516,9 @@ const handlePrintReceipt = (tx: Transaction) => {
                 const product = products.find(p => p.id === item.id);
                 const itemCostPrice = item.costPrice || product?.costPrice || 0;
                 const itemTotal = item.sellingPrice * item.quantity;
+                const expectedUnit = product?.sellingPrice ?? item.sellingPrice;
+                const expectedTotal = expectedUnit * item.quantity;
+                const itemChange = itemTotal - expectedTotal;
                 const itemDiscount = itemDiscountShare;
                 const itemBalance = itemTotal - itemDiscount;
                 const itemCostTotal = itemCostPrice * item.quantity;
@@ -513,6 +528,7 @@ const handlePrintReceipt = (tx: Transaction) => {
                 grandTotalAfterDiscount += itemBalance;
                 grandTotalCostPrice += itemCostTotal;
                 grandTotalSellPrice += itemTotal;
+                grandTotalChange += itemChange;
                 
                 return [
                     sn++,
@@ -524,6 +540,7 @@ const handlePrintReceipt = (tx: Transaction) => {
                     itemTotal.toFixed(2),
                     itemDiscount.toFixed(2),
                     itemBalance.toFixed(2),
+                    itemChange.toFixed(2),
                     t.cashierName,
                     new Date(t.date).toLocaleString(),
                     t.status
@@ -531,7 +548,7 @@ const handlePrintReceipt = (tx: Transaction) => {
             });
         });
         
-        const columns = ["S/N", "Item Name", "Qty", "Unit Cost", "Total Cost", "Unit Sell", "Total Sell", "Discount", "Balance", "Cashier", "Date", "Status"];
+        const columns = ["S/N", "Item Name", "Qty", "Unit Cost", "Total Cost", "Unit Sell", "Total Sell", "Discount", "Balance", "Change", "Cashier", "Date", "Status"];
         autoTable(doc, { 
             head: [columns], 
             body: rows, 
@@ -548,9 +565,10 @@ const handlePrintReceipt = (tx: Transaction) => {
                 6: { cellWidth: 18, halign: 'right' }, // Total Sell
                 7: { cellWidth: 15, halign: 'right' }, // Discount
                 8: { cellWidth: 18, halign: 'right' }, // Balance
-                9: { cellWidth: 20 }, // Cashier
-                10: { cellWidth: 25 }, // Date
-                11: { cellWidth: 15, halign: 'center' } // Status
+                9: { cellWidth: 15, halign: 'right' }, // Change
+                10: { cellWidth: 20 }, // Cashier
+                11: { cellWidth: 25 }, // Date
+                12: { cellWidth: 15, halign: 'center' } // Status
             },
             alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 10, right: 10 }
@@ -564,8 +582,9 @@ const handlePrintReceipt = (tx: Transaction) => {
                 ['Total Cost Price', grandTotalCostPrice.toFixed(2)],
                 ['Total Sell Price (Before Discount)', grandTotalBeforeDiscount.toFixed(2)],
                 ['Total Discount', grandTotalDiscount.toFixed(2)],
-                ['Grand Total (After Discount)', grandTotalAfterDiscount.toFixed(2)],
-                ['Total Profit', (grandTotalAfterDiscount - grandTotalCostPrice).toFixed(2)],
+                    ['Grand Total (After Discount)', grandTotalAfterDiscount.toFixed(2)],
+                    ['Total Change', grandTotalChange.toFixed(2)],
+                    ['Total Profit', (grandTotalAfterDiscount - grandTotalCostPrice).toFixed(2)],
                 ['Cash', breakdown[PaymentMethod.CASH].toFixed(2)],
                 ['POS', breakdown[PaymentMethod.POS].toFixed(2)],
                 ['Transfer', breakdown[PaymentMethod.TRANSFER].toFixed(2)],
@@ -587,24 +606,25 @@ const handlePrintReceipt = (tx: Transaction) => {
       const breakdown = getSummaryMetrics();
       let content = '';
       if(reportViewMode === 'detailed') {
-           content = `
-           <table>
-             <thead><tr><th>S/N</th><th>Item</th><th>Sold</th><th>Discount</th><th>Balance</th><th>Method</th><th>Total Sales</th><th>Profit</th></tr></thead>
-             <tbody>${detailedReportData.rows.map(r=>`<tr><td>${r.sn}</td><td>${r.itemName}</td><td>${r.qtySold}</td><td>${r.discount.toFixed(2)}</td><td>${r.balance.toFixed(2)}</td><td>${r.paymentMethod}</td><td>${r.totalSales.toFixed(2)}</td><td>${r.profit.toFixed(2)}</td></tr>`).join('')}</tbody>
-           </table>
-           <div style="margin-top:20px; font-weight:bold; color: #1a1a1a;">Financial Summary</div>
-           <table class="summary-table" style="margin-top:10px;">
-             <tr><td>Total Sales (Before Discount)</td><td class="text-right">${detailedReportData.grandTotalSales.toFixed(2)}</td></tr>
-             <tr><td>Total Discount</td><td class="text-right">${detailedReportData.grandDiscount.toFixed(2)}</td></tr>
-             <tr><td>Total Sales (After Discount)</td><td class="text-right">${detailedReportData.grandTotalBalance.toFixed(2)}</td></tr>
-             <tr><td>Total Cost</td><td class="text-right">${detailedReportData.grandTotalCost.toFixed(2)}</td></tr>
-             <tr><td><strong>Total Profit</strong></td><td class="text-right"><strong>${detailedReportData.grandTotalProfit.toFixed(2)}</strong></td></tr>
-             <tr><td>Cash</td><td class="text-right">${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
-             <tr><td>POS</td><td class="text-right">${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
-             <tr><td>Transfer</td><td class="text-right">${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
-             <tr><td>Credit</td><td class="text-right">${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
-           </table>
-           `;
+                     content = `
+                     <table>
+                         <thead><tr><th>S/N</th><th>Item</th><th>Sold</th><th>Discount</th><th>Balance</th><th>Method</th><th>Total Sales</th><th>Change</th><th>Profit</th></tr></thead>
+                         <tbody>${detailedReportData.rows.map(r=>`<tr><td>${r.sn}</td><td>${r.itemName}</td><td>${r.qtySold}</td><td>${r.discount.toFixed(2)}</td><td>${r.balance.toFixed(2)}</td><td>${r.paymentMethod}</td><td>${r.totalSales.toFixed(2)}</td><td>${r.change.toFixed(2)}</td><td>${r.profit.toFixed(2)}</td></tr>`).join('')}</tbody>
+                     </table>
+                     <div style="margin-top:20px; font-weight:bold; color: #1a1a1a;">Financial Summary</div>
+                     <table class="summary-table" style="margin-top:10px;">
+                         <tr><td>Total Sales (Before Discount)</td><td class="text-right">${detailedReportData.grandTotalSales.toFixed(2)}</td></tr>
+                         <tr><td>Total Discount</td><td class="text-right">${detailedReportData.grandDiscount.toFixed(2)}</td></tr>
+                         <tr><td>Total Sales (After Discount)</td><td class="text-right">${detailedReportData.grandTotalBalance.toFixed(2)}</td></tr>
+                         <tr><td>Total Cost</td><td class="text-right">${detailedReportData.grandTotalCost.toFixed(2)}</td></tr>
+                         <tr><td>Total Change</td><td class="text-right">${detailedReportData.grandTotalChange?.toFixed(2) ?? '0.00'}</td></tr>
+                         <tr><td><strong>Total Profit</strong></td><td class="text-right"><strong>${detailedReportData.grandTotalProfit.toFixed(2)}</strong></td></tr>
+                         <tr><td>Cash</td><td class="text-right">${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
+                         <tr><td>POS</td><td class="text-right">${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
+                         <tr><td>Transfer</td><td class="text-right">${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
+                         <tr><td>Credit</td><td class="text-right">${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
+                     </table>
+                     `;
       } else if (reportViewMode === 'transactions') {
           // Enhanced transactions report with item details
           let sn = 1;
@@ -613,6 +633,7 @@ const handlePrintReceipt = (tx: Transaction) => {
           let grandTotalAfterDiscount = 0;
           let grandTotalCostPrice = 0;
           let grandTotalSellPrice = 0;
+          let grandTotalChange = 0;
           
           const rowsHtml = filteredReportTransactions.flatMap(t => {
               const itemDiscountShare = t.discount / (t.items.length || 1);
@@ -621,6 +642,8 @@ const handlePrintReceipt = (tx: Transaction) => {
                   const product = products.find(p => p.id === item.id);
                   const itemCostPrice = item.costPrice || product?.costPrice || 0;
                   const itemTotal = item.sellingPrice * item.quantity;
+                  const expectedUnit = product?.sellingPrice ?? item.sellingPrice;
+                  const itemChange = itemTotal - (expectedUnit * item.quantity);
                   const itemDiscount = itemDiscountShare;
                   const itemBalance = itemTotal - itemDiscount;
                   const itemCostTotal = itemCostPrice * item.quantity;
@@ -630,10 +653,11 @@ const handlePrintReceipt = (tx: Transaction) => {
                   grandTotalAfterDiscount += itemBalance;
                   grandTotalCostPrice += itemCostTotal;
                   grandTotalSellPrice += itemTotal;
+                  grandTotalChange += itemChange;
                   
                   return `<tr>
                       <td>${sn++}</td>
-                      <td>${item.name}</td>
+                      <td>${getItemName(item)}</td>
                       <td>${item.quantity}</td>
                       <td>${itemCostPrice.toFixed(2)}</td>
                       <td>${itemCostTotal.toFixed(2)}</td>
@@ -641,6 +665,7 @@ const handlePrintReceipt = (tx: Transaction) => {
                       <td>${itemTotal.toFixed(2)}</td>
                       <td>${itemDiscount.toFixed(2)}</td>
                       <td>${itemBalance.toFixed(2)}</td>
+                      <td>${itemChange.toFixed(2)}</td>
                       <td>${t.cashierName}</td>
                       <td>${new Date(t.date).toLocaleString()}</td>
                       <td>${t.status}</td>
@@ -648,24 +673,25 @@ const handlePrintReceipt = (tx: Transaction) => {
               });
           }).join('');
           
-          content = `
-          <table>
-            <thead><tr><th>S/N</th><th>Item Name</th><th>Qty</th><th>Unit Cost</th><th>Total Cost</th><th>Unit Sell</th><th>Total Sell</th><th>Discount</th><th>Balance</th><th>Cashier</th><th>Date</th><th>Status</th></tr></thead>
-            <tbody>${rowsHtml}</tbody>
-          </table>
-          <div style="margin-top:20px; font-weight:bold; color: #1a1a1a;">Grand Total Breakdown</div>
-          <table class="summary-table" style="margin-top:10px;">
-            <tr><td>Total Cost Price</td><td class="text-right">${grandTotalCostPrice.toFixed(2)}</td></tr>
-            <tr><td>Total Sell Price (Before Discount)</td><td class="text-right">${grandTotalBeforeDiscount.toFixed(2)}</td></tr>
-            <tr><td>Total Discount</td><td class="text-right">${grandTotalDiscount.toFixed(2)}</td></tr>
-            <tr><td><strong>Grand Total (After Discount)</strong></td><td class="text-right"><strong>${grandTotalAfterDiscount.toFixed(2)}</strong></td></tr>
-            <tr><td>Total Profit</td><td class="text-right">${(grandTotalAfterDiscount - grandTotalCostPrice).toFixed(2)}</td></tr>
-            <tr><td>Cash</td><td class="text-right">${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
-            <tr><td>POS</td><td class="text-right">${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
-            <tr><td>Transfer</td><td class="text-right">${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
-            <tr><td>Credit</td><td class="text-right">${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
-          </table>
-          `;
+                    content = `
+                    <table>
+                        <thead><tr><th>S/N</th><th>Item Name</th><th>Qty</th><th>Unit Cost</th><th>Total Cost</th><th>Unit Sell</th><th>Total Sell</th><th>Discount</th><th>Balance</th><th>Change</th><th>Cashier</th><th>Date</th><th>Status</th></tr></thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                    <div style="margin-top:20px; font-weight:bold; color: #1a1a1a;">Grand Total Breakdown</div>
+                    <table class="summary-table" style="margin-top:10px;">
+                        <tr><td>Total Cost Price</td><td class="text-right">${grandTotalCostPrice.toFixed(2)}</td></tr>
+                        <tr><td>Total Sell Price (Before Discount)</td><td class="text-right">${grandTotalBeforeDiscount.toFixed(2)}</td></tr>
+                        <tr><td>Total Discount</td><td class="text-right">${grandTotalDiscount.toFixed(2)}</td></tr>
+                        <tr><td><strong>Grand Total (After Discount)</strong></td><td class="text-right"><strong>${grandTotalAfterDiscount.toFixed(2)}</strong></td></tr>
+                        <tr><td>Total Change</td><td class="text-right">${grandTotalChange.toFixed(2)}</td></tr>
+                        <tr><td>Total Profit</td><td class="text-right">${(grandTotalAfterDiscount - grandTotalCostPrice).toFixed(2)}</td></tr>
+                        <tr><td>Cash</td><td class="text-right">${breakdown[PaymentMethod.CASH].toFixed(2)}</td></tr>
+                        <tr><td>POS</td><td class="text-right">${breakdown[PaymentMethod.POS].toFixed(2)}</td></tr>
+                        <tr><td>Transfer</td><td class="text-right">${breakdown[PaymentMethod.TRANSFER].toFixed(2)}</td></tr>
+                        <tr><td>Credit</td><td class="text-right">${breakdown[PaymentMethod.CREDIT].toFixed(2)}</td></tr>
+                    </table>
+                    `;
       } else {
            content = `<table><thead><tr><th>Date</th><th>Total</th><th>Status</th></tr></thead><tbody>${filteredReportTransactions.map(t=>`<tr><td>${new Date(t.date).toLocaleString()}</td><td>${t.total.toFixed(2)}</td><td>${t.status}</td></tr>`).join('')}</tbody></table>`;
       }
@@ -871,7 +897,7 @@ const handlePrintReceipt = (tx: Transaction) => {
                     {reportViewMode === 'detailed' ? (
                         <table className="w-full text-left text-sm text-gray-300">
                             <thead className="bg-gray-900 text-gray-400 text-xs uppercase font-bold">
-                                <tr><th>S/N</th><th>Item</th><th>Qty Before</th><th>Sold</th><th>Rem</th><th>Method</th><th>Cost</th><th>Price</th><th>Total Sales</th><th>Profit</th></tr>
+                                <tr><th>S/N</th><th>Item</th><th>Qty Before</th><th>Sold</th><th>Rem</th><th>Method</th><th>Cost</th><th>Price</th><th>Total Sales</th><th>Change</th><th>Profit</th></tr>
                             </thead>
                             <tbody className="divide-y divide-gray-700">
                                 {detailedReportData.rows.map(r => (
@@ -880,7 +906,9 @@ const handlePrintReceipt = (tx: Transaction) => {
                                         <td className="p-3">{r.qtyBefore}</td><td className="p-3 text-blue-400 font-bold">{r.qtySold}</td>
                                         <td className="p-3">{r.qtyRemaining}</td><td className="p-3">{r.paymentMethod}</td>
                                         <td className="p-3">{r.unitCost.toFixed(2)}</td><td className="p-3">{r.unitPrice.toFixed(2)}</td>
-                                        <td className="p-3 text-white font-bold">{r.totalSales.toFixed(2)}</td><td className="p-3 text-green-400 font-bold">{r.profit.toFixed(2)}</td>
+                                        <td className="p-3 text-white font-bold">{r.totalSales.toFixed(2)}</td>
+                                        <td className="p-3 text-yellow-300 font-bold">{r.change?.toFixed(2)}</td>
+                                        <td className="p-3 text-green-400 font-bold">{r.profit.toFixed(2)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -903,7 +931,7 @@ const handlePrintReceipt = (tx: Transaction) => {
                                         <tr key={`${t.id}-${item.id}`} className="hover:bg-gray-700/50">
                                             <td className="p-3">{new Date(t.date).toLocaleString()}</td>
                                             <td className="p-3 font-mono text-xs">{t.id.slice(0,8)}</td>
-                                            <td className="p-3 font-bold">{item.name}</td>
+                                            <td className="p-3 font-bold">{getItemName(item)}</td>
                                             <td className="p-3">{item.quantity}</td>
                                             <td className="p-3 text-green-400 font-bold">{settings.currency}{(item.sellingPrice * item.quantity).toFixed(2)}</td>
                                             <td className="p-3">{t.paymentMethod}</td>
@@ -963,7 +991,7 @@ const handlePrintReceipt = (tx: Transaction) => {
                                        <tr key={t.id} className="hover:bg-gray-700/50">
                                            <td className="p-3 w-8"><input type="checkbox" className="w-4 h-4 accent-blue-600" checked={selectedTransactions.has(t.id)} onChange={e => { const newSet = new Set(selectedTransactions); if(e.target.checked) { newSet.add(t.id); } else { newSet.delete(t.id); } setSelectedTransactions(newSet); }} /></td>
                                            <td className="p-3">{new Date(t.date).toLocaleString()}</td><td className="p-3 font-mono text-xs">{t.id.slice(0,8)}</td>
-                                           <td className="p-3">{t.items.map(i => i.name).join(', ')}</td>
+                                           <td className="p-3">{t.items.map(i => getItemName(i)).join(', ')}</td>
                                            <td className="p-3">{t.cashierName}</td><td className="p-3">{t.paymentMethod}</td>
                                            <td className="p-3 font-bold text-white">{settings.currency}{t.total.toFixed(2)}</td><td className="p-3">{t.status}</td>
                                            <td className="p-3"><button onClick={() => { if(window.confirm('Move to recycle bin?')) deleteTransaction(t.id); }} className="text-red-400 hover:text-red-300"><Icons.Delete size={16}/></button></td>
@@ -1235,7 +1263,7 @@ const handlePrintReceipt = (tx: Transaction) => {
                                 <div key={item.id} className="flex justify-between items-center p-3 border-b border-gray-700 bg-gray-800 mb-2 rounded shadow-sm">
                                     <div className="flex items-center gap-3">
                                         <input type="checkbox" className="w-5 h-5 accent-blue-600" checked={!!itemsToReturn.find(i => i.itemId === item.id)} onChange={() => toggleItemReturn(item.id, item.quantity)} />
-                                        <span className="font-bold text-gray-300">{item.name} (Qty: {item.quantity})</span>
+                                        <span className="font-bold text-gray-300">{getItemName(item)} (Qty: {item.quantity})</span>
                                     </div>
                                     <span className="font-bold text-white">{settings.currency}{item.sellingPrice}</span>
                                 </div>
